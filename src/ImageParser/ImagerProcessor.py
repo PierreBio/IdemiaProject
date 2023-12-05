@@ -143,13 +143,14 @@ class ImageProcessor:
         return self.__parsed_data
 
     # -----------------------------------------------------------------------------
-    # augment_with_occlusion
+    # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def augment_with_occlusion(self, weight=""):
+    def generate_occluded_data(self, weight="", include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
             weight (str): Optional, "lower_body" or "upper_body" to bias the occlusion, "" for completely random
+            include_original_data (bool): If True (default), include original data alongside occluded data
 
         Returns:
             list: Augmented data with each original entry followed by an occluded version
@@ -158,8 +159,11 @@ class ImageProcessor:
             Calling this method, does not affect the internal parsed data. The returned augmented
             data will be lost if not stored.
         """
-        # Copying original data
-        augmented_data = self.__parsed_data.copy()
+        # Return var Init
+        if include_original_data:
+            augmented_data = self.__parsed_data.copy()
+        else:
+            augmented_data = []
 
         # Upper body contains 11 kps, lower body contains 4 kps (excluding ankles)
         upper_body_range = range(0, 33)

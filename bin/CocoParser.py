@@ -10,12 +10,12 @@ def main():
                         "annotations_trainval2017",
                         "person_keypoints_val2017.json")
     coco_parser = ImageProcessor(file)
-    results = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
-    results2 = coco_parser.augment_with_occlusion(weight="upper_body")
+    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
+    occluded_only = coco_parser.generate_occluded_data("upper_body", False)
 
     headers = ["Img_Id", "Pedestrian_id", "Keypoints", "Target"]
-    save_to_csv("output.csv", headers, results)
-    save_to_csv("output2.csv", headers, results2)
+    save_to_csv("orignal_data.csv", headers, original_data)
+    save_to_csv("occluded_only.csv", headers, occluded_only)
 
 
 def startup_msg():
