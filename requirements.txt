@@ -1,0 +1,4 @@
+matplotlib==3.7.1
+pycocotools==2.0.7
+setuptools==65.5.0
+scikit-image==0.22.0
