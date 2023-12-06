@@ -70,7 +70,8 @@ class ImageProcessor:
         """
         # Iterating through images
         for img_id in image_ids:
-            img_anns = self.__coco_db.loadAnns(self.__coco_db.getAnnIds(img_id))
+            img_anns = self.__coco_db.loadAnns(
+                self.__coco_db.getAnnIds(img_id))
 
             # Iterating through image annotations
             for img_ann in img_anns:
@@ -84,14 +85,18 @@ class ImageProcessor:
                         logging.debug(f"[ImageParse]: ACCEPTED Img {img_id}")
 
                         # Computing distance between 2 feets
-                        target = [(img_kps[-3] + img_kps[-6]) / 2, (img_kps[-5] + img_kps[-2]) / 2]
+                        target = [(img_kps[-3] + img_kps[-6]) / 2,
+                                  (img_kps[-5] + img_kps[-2]) / 2]
 
                         # Adding accepted data to parsed_data
-                        self.__parsed_data.append([img_id, img_ann["id"], img_kps[:-6], target])
+                        self.__parsed_data.append(
+                            [img_id, img_ann["id"], img_kps[:-6], target])
                     else:
-                        logging.debug(f"[ImageParse]: REJECTED, Not enough kps visible for image {img_id}")
+                        logging.debug(
+                            f"[ImageParse]: REJECTED, Not enough kps visible for image {img_id}")
                 else:
-                    logging.debug(f"[ImageParse]: REJECTED, Feets not visible for image {img_id}")
+                    logging.debug(
+                        f"[ImageParse]: REJECTED, Feets not visible for image {img_id}")
 
     # -----------------------------------------------------------------------------
     # parse_annotation_file
@@ -122,7 +127,8 @@ class ImageProcessor:
 
         # Sanity check
         if not os.path.isfile(ann_file_path):
-            raise FileExistsError(f"File {ann_file_path} does not exist, exiting..")
+            raise FileExistsError(
+                f"File {ann_file_path} does not exist, exiting..")
 
         # Resetting parsed data
         self.__parsed_data = []
