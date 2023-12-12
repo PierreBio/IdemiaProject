@@ -151,11 +151,13 @@ class ImageProcessor:
     # -----------------------------------------------------------------------------
     # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def generate_occluded_data(self, weight="", include_original_data=True):
+    def generate_occluded_data(self, weight_position="", weight_value=0.7, include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
-            weight (str): Optional, "lower_body" or "upper_body" to bias the occlusion, "" for completely random
+            weight_position (str): "lower_body" or "upper_body" to bias the occlusion, "" for completely random
+            weight_value (float): weight value with default = 0.7,
+                                  non targeted parts will have the weight of 1-weight_value
             include_original_data (bool): If True (default), include original data alongside occluded data
 
         Returns:
@@ -183,12 +185,11 @@ class ImageProcessor:
 
             for i in range(len(occluded_keypoints) // 3):
                 # Determine occlusion proba based on weight
-                if weight == "lower_body" and i in lower_body_range:
-                    occlusion_chance = 0.7
-                elif weight == "upper_body" and i in upper_body_range:
-                    occlusion_chance = 0.7
+                if ((weight_position == "lower_body" and i in lower_body_range) or
+                        (weight_position == "upper_body" and i in upper_body_range)):
+                    occlusion_chance = weight_value
                 else:
-                    occlusion_chance = 0.3
+                    occlusion_chance = 1 - weight_value
 
                 # Apply occlusion randomly based on calculated chance
                 if random.random() < occlusion_chance:
