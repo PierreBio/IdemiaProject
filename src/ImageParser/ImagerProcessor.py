@@ -180,6 +180,14 @@ class ImageProcessor:
         for data_point in self.__parsed_data:
             img_id, ann_id, keypoints, target = data_point
 
+            # Count non-visible keypoints
+            non_visible_count = keypoints.count(0) // 3
+
+            # Skip this keypoints list if non-visible keypoints exceed the threshold
+            if non_visible_count > 5:
+                print("skipping keypoint list")
+                continue
+
             # Initializing occluded kps
             occluded_keypoints = keypoints.copy()
 
