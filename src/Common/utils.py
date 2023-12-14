@@ -48,10 +48,10 @@ def visualize_csv_stats(file_path):
     df = pd.read_csv(file_path)
 
     # Convert keypoints from string to list
-    df['Keypoints'] = df['Keypoints'].apply(eval)
+    df['keypoints'] = df['keypoints'].apply(eval)
 
     # Calculate visibility for each keypoint
-    df['visible_keypoints'] = df['Keypoints'].apply(lambda kps: [kps[i*3+2] for i in range(len(keypoint_names))])
+    df['visible_keypoints'] = df['keypoints'].apply(lambda kps: [kps[i*3+2] for i in range(len(keypoint_names))])
     df['occluded_keypoints'] = df['visible_keypoints'].apply(lambda vis: [1 if v == 0 else 0 for v in vis])
 
     # Calculate the most frequently occluded keypoint

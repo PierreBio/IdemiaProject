@@ -151,7 +151,7 @@ class ImageProcessor:
     # -----------------------------------------------------------------------------
     # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def generate_occluded_data(self, weight_position="", weight_value=0.7, include_original_data=True):
+    def generate_occluded_data(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
@@ -184,7 +184,7 @@ class ImageProcessor:
             non_visible_count = keypoints.count(0) // 3
 
             # Skip this keypoints list if non-visible keypoints exceed the threshold
-            if non_visible_count > 5:
+            if non_visible_count > min_visible_threshold:
                 print("skipping keypoint list")
                 continue
 
@@ -192,6 +192,9 @@ class ImageProcessor:
             occluded_keypoints = keypoints.copy()
 
             for i in range(len(occluded_keypoints) // 3):
+                if non_visible_count > min_visible_threshold:
+                    break
+
                 # Determine occlusion proba based on weight
                 if ((weight_position == "lower_body" and i in lower_body_range) or
                         (weight_position == "upper_body" and i in upper_body_range)):
@@ -202,6 +205,7 @@ class ImageProcessor:
                 # Apply occlusion randomly based on calculated chance
                 if random.random() < occlusion_chance:
                     occluded_keypoints[3*i:3*i+3] = [0, 0, 0]
+                    non_visible_count += 1
 
             augmented_data.append([img_id, ann_id, occluded_keypoints, target])
 
