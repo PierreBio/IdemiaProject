@@ -16,8 +16,16 @@ def main():
     headers = ["img_id", "pedestrian_id", "keypoints", "target"]
     save_to_csv("orignal_data.csv", headers, original_data)
     save_to_csv("occluded_only_w_threshold.csv", headers, occluded_only)
-    visualize_csv_stats("occluded_only_w_threshold.csv")
+
+
+def visualize():
+    print("ORIGINAL DATA")
+    print("=============")
     visualize_csv_stats("orignal_data.csv")
+
+    print("\nOCCLUDED DATA")
+    print("=============")
+    visualize_csv_stats("occluded_only_w_threshold.csv")
 
 
 def startup_msg():
@@ -25,5 +33,6 @@ def startup_msg():
 
 
 if __name__ == "__main__":
-    # startup_msg()
-    main()
+    startup_msg()
+    # main()
+    visualize()
