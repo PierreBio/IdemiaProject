@@ -4,3 +4,4 @@ orignal_data.csv
 build/*
 dist/*
 *.egg-info/*
+*.pyc
