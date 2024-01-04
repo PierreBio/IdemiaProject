@@ -1,6 +1,7 @@
 import csv
 import pandas as pd
 from tabulate import tabulate
+import math
 
 
 # -----------------------------------------------------------------------------
@@ -38,7 +39,7 @@ def visualize_csv_stats(file_path):
         file_path (str): Path to the CSV file.
 
     Returns:
-        None: Prints a table of statistics.
+        stats: dictionary containing the csv detailed statistics
     """
     keypoint_names = ["nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder",
                       "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip",
@@ -61,13 +62,13 @@ def visualize_csv_stats(file_path):
 
     stats = {
         'Total images': len(df),
-        'Average keypoints occluded per image': round(sum(occlusion_counts) / len(df)),
+        'Average keypoints occluded per image': math.ceil(sum(occlusion_counts) / len(df)),
         'Max visible keypoints': df['visible_keypoints'].apply(lambda kps: sum(v > 0 for v in kps)).max(),
         'Min visible keypoints': df['visible_keypoints'].apply(lambda kps: sum(v > 0 for v in kps)).min(),
         'Percentage of images with occlusion': round(100 * sum(any(v == 0 for v in vis) for vis in df['visible_keypoints']) / len(df), 2),
-        'Standard deviation of visible keypoints': round(df['visible_keypoints'].apply(lambda kps: sum(v > 0 for v in kps)).std(), 2),
         'Most frequently occluded keypoint': most_frequent_occluded_kp,
     }
 
-    # Print the table
+    # Print table & return results
     print(tabulate(stats.items(), headers=["Statistic", "Value"], floatfmt=".2f", stralign="left"))
+    return stats
