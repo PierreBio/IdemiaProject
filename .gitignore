@@ -2,6 +2,7 @@
 occluded_only.csv
 orignal_data.csv
 build/*
+crops/*
 dist/*
 idemia_env/*
 *.egg-info/*
