@@ -1,4 +1,9 @@
 import os
+import sys
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+sys.path.insert(0, parent_dir)
 
 from src.ImageParser.ImagerProcessor import ImageProcessor
 from src.Common.utils import *
@@ -12,6 +17,7 @@ def main():
     coco_parser = ImageProcessor(file)
     original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
     data_with_occlusion = coco_parser.generate_occluded_data("upper_body", 0.8, 5, True)
+    coco_parser.extract_and_save_image_crops("crops")
 
     headers = ["img_id", "pedestrian_id", "keypoints", "target"]
     save_to_csv("original_data.csv", headers, original_data)
