@@ -2,9 +2,10 @@ import logging
 import os
 import random
 import matplotlib.pyplot as plt
+from PIL import Image, ImageEnhance, ImageOps
 from pycocotools.coco import COCO
+import io as io_lib
 import skimage.io as io
-
 
 # -----------------------------------------------------------------------------
 # ImageProcessor
@@ -263,10 +264,10 @@ class ImageProcessor:
     # extract_and_save_image_crops
     # -----------------------------------------------------------------------------
     def extract_and_save_image_crops(self, save_dir):
-        """ Extrait et enregistre des crops d'images pour chaque annotation.
+        """ Extracts and saves image crops for each annotation.
 
         Args:
-            save_dir (str): Dossier où enregistrer les crops d'images.
+            save_dir (str): Folder where to save image crops.
 
         Returns:
             None
@@ -283,8 +284,36 @@ class ImageProcessor:
             for ann in anns:
                 x, y, w, h = ann['bbox']
                 crop = img_data[int(y):int(y+h), int(x):int(x+w)]
-                crop_filename = f"{save_dir}/crop_{img_id}_{ann_id}.png"
-                io.imsave(crop_filename, crop)
+                crop_pil = Image.fromarray(crop)
+                augmented_crop = self.augment_image(crop_pil)
+                crop_filename = f"{save_dir}/augmented_crop_{img_id}_{ann_id}.png"
+                augmented_crop.save(crop_filename)
+
+    # -----------------------------------------------------------------------------
+    # augment_image
+    # -----------------------------------------------------------------------------
+    def augment_image(self, image):
+        """ Apply data augmentation to an image and save the result.
+
+        Args:
+            image_path (str): Path to the original image.
+            save_path (str): Path to save the augmented image.
+        """
+        if random.choice([True, False]):
+            image = image.rotate(random.choice(range(-30, 30)))
+
+        if random.choice([True, False]):
+            image = ImageOps.mirror(image)
+
+        if random.choice([True, False]):
+            enhancer = ImageEnhance.Brightness(image)
+            image = enhancer.enhance(random.uniform(0.7, 1.3))
+
+        if random.choice([True, False]):
+            enhancer = ImageEnhance.Contrast(image)
+            image = enhancer.enhance(random.uniform(0.7, 1.3))
+
+        return image
 
     # -----------------------------------------------------------------------------
     # parsed data getter
