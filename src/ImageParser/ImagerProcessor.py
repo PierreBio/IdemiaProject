@@ -239,6 +239,33 @@ class ImageProcessor:
             plt.show()
 
     # -----------------------------------------------------------------------------
+    # extract_and_save_image_crops
+    # -----------------------------------------------------------------------------
+    def extract_and_save_image_crops(self, save_dir):
+        """ Extrait et enregistre des crops d'images pour chaque annotation.
+
+        Args:
+            save_dir (str): Dossier où enregistrer les crops d'images.
+
+        Returns:
+            None
+        """
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        for data_point in self.__parsed_data:
+            img_id, ann_id, keypoints, target = data_point
+            image = self.__coco_db.loadImgs(img_id)[0]
+            img_data = io.imread(image['coco_url'])
+            anns = self.__coco_db.loadAnns(ann_id)
+
+            for ann in anns:
+                x, y, w, h = ann['bbox']
+                crop = img_data[int(y):int(y+h), int(x):int(x+w)]
+                crop_filename = f"{save_dir}/crop_{img_id}_{ann_id}.png"
+                io.imsave(crop_filename, crop)
+
+    # -----------------------------------------------------------------------------
     # parsed data getter
     # -----------------------------------------------------------------------------
     @property
