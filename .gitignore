@@ -1,5 +1,5 @@
-
-occluded_only.csv
+venv*
+occluded_only*
 orignal_data.csv
 build/*
 dist/*
