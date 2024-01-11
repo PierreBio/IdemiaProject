@@ -14,7 +14,7 @@ def main():
     occluded_only = coco_parser.generate_occluded_data("upper_body", 0.8, 5, False)
 
     headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("orignal_data.csv", headers, original_data)
+    save_to_csv("original_data.csv", headers, original_data)
     save_to_csv("occluded_only_w_threshold.csv", headers, occluded_only)
 
 

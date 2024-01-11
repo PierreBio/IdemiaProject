@@ -46,33 +46,32 @@ class MLP(nn.Module):
 
 
 # Reading CSV data
-df = pd.read_csv('occluded_only_w_threshold.csv')
+df = pd.read_csv('original_data.csv')
 df['keypoints'] = df['keypoints'].apply(csv_string_to_list)
 df['target'] = df['target'].apply(csv_string_to_list)
 
-X = np.array(df['keypoints'].tolist(), dtype=np.float32)
-y = np.array(df['target'].tolist(), dtype=np.float32)
+X_train = np.array(df['keypoints'].tolist(), dtype=np.float32)
+y_train = np.array(df['target'].tolist(), dtype=np.float32)
 
-# Splitting data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+# TODO: Train csv has original data only
+# TODO: validation has occluded data -> same validation for every test
+# TODO: Normalisation inputs (gaussian)
 # Initialize model parameters
 input_size = len(X_train[0])  # Features
 output_size = 2  # Target (left_ankle, right_ankle)
 model = MLP(input_size, output_size)
 
 # Init Loss function
+# TODO: use RMSE
 loss_function = nn.MSELoss()
 
 # Init Optimizer
+# TODO: try different combination of hyperparams
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # DataLoaders (train & test)
 train_dataset = KeypointsDataset(X_train, y_train)
 train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
-
-test_dataset = KeypointsDataset(X_test, y_test)
-test_loader = DataLoader(test_dataset, batch_size=10, shuffle=False)
 
 # Training Loop
 epochs = 5
