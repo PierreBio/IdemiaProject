@@ -46,16 +46,14 @@ class MLP(nn.Module):
 
 
 # Reading CSV data
-df = pd.read_csv('original_data.csv')
+df = pd.read_csv('data_with_occlusion.csv')
 df['keypoints'] = df['keypoints'].apply(csv_string_to_list)
 df['target'] = df['target'].apply(csv_string_to_list)
 
 X_train = np.array(df['keypoints'].tolist(), dtype=np.float32)
 y_train = np.array(df['target'].tolist(), dtype=np.float32)
 
-# TODO: Train csv has original data only
 # TODO: validation has occluded data -> same validation for every test
-# TODO: Normalisation inputs (gaussian)
 # Initialize model parameters
 input_size = len(X_train[0])  # Features
 output_size = 2  # Target (left_ankle, right_ankle)
@@ -87,26 +85,26 @@ for epoch in range(epochs):
     print(f'Epoch {epoch+1}/{epochs}, Loss: {loss.item()}')
 
 # Model Evaluation
-model.eval()
-y_pred = []
-y_true = []
-
-with torch.no_grad():
-    for inputs, targets in test_loader:
-        outputs = model(inputs)
-        y_pred.extend(outputs.tolist())
-        y_true.extend(targets.tolist())
-
-mse = mean_squared_error(y_true, y_pred)
-r2 = r2_score(y_true, y_pred)
-
-print("Mean Squared Error:", mse)
-print("R2 Score:", r2)
-
-# Plot test
-plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
-# plt.scatter(y_test, y_pred)
-plt.xlabel("Actual Values")
-plt.ylabel("Predicted Values")
-plt.title("Predicted vs. Actual Values")
-plt.show()
+# model.eval()
+# y_pred = []
+# y_true = []
+#
+# with torch.no_grad():
+#     for inputs, targets in test_loader:
+#         outputs = model(inputs)
+#         y_pred.extend(outputs.tolist())
+#         y_true.extend(targets.tolist())
+#
+# mse = mean_squared_error(y_true, y_pred)
+# r2 = r2_score(y_true, y_pred)
+#
+# print("Mean Squared Error:", mse)
+# print("R2 Score:", r2)
+#
+# # Plot test
+# plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
+# # plt.scatter(y_test, y_pred)
+# plt.xlabel("Actual Values")
+# plt.ylabel("Predicted Values")
+# plt.title("Predicted vs. Actual Values")
+# plt.show()
