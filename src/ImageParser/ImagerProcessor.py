@@ -56,6 +56,26 @@ class ImageProcessor:
         return visible_percentage >= threshold
 
     # -----------------------------------------------------------------------------
+    # __normalize_keypoints
+    # -----------------------------------------------------------------------------
+    @staticmethod
+    def __normalize_keypoints(keypoints, bbox):
+        """ Normalizes keypoints to be relative to the bounding box.
+
+        Args:
+            keypoints: List of keypoints for an image.
+            bbox: Bounding box with [x0, y0, width, height].
+
+        Returns:
+            List of normalized keypoints.
+        """
+        x0, y0, w, h = bbox
+        for i in range(0, len(keypoints), 3):
+            keypoints[i] = (keypoints[i] - x0) / w
+            keypoints[i + 1] = (keypoints[i + 1] - y0) / h
+        return keypoints
+
+    # -----------------------------------------------------------------------------
     # __parse_images
     # -----------------------------------------------------------------------------
     def __parse_images(self, image_ids, threshold) -> None:
@@ -75,22 +95,23 @@ class ImageProcessor:
 
             # Iterating through image annotations
             for img_ann in img_anns:
-                img_kps = img_ann["keypoints"]
+                # Normalize keypoints
+                normalized_kps = self.__normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
 
                 # Checking feets visibility (for scientific purpose only)
                 # Feets are last 2 sets of kps
-                if img_kps[-1] != 0 and img_kps[-4] != 0:
+                if normalized_kps[-1] != 0 and normalized_kps[-4] != 0:
                     # Computing % of visible kps
-                    if self.__kps_visibility_check(img_kps[:-6], threshold):
+                    if self.__kps_visibility_check(normalized_kps[:-6], threshold):
                         logging.debug(f"[ImageParse]: ACCEPTED Img {img_id}")
 
                         # Computing distance between 2 feets
-                        target = [(img_kps[-3] + img_kps[-6]) / 2,
-                                  (img_kps[-5] + img_kps[-2]) / 2]
+                        target = [(normalized_kps[-3] + normalized_kps[-6]) / 2,
+                                  (normalized_kps[-5] + normalized_kps[-2]) / 2]
 
                         # Adding accepted data to parsed_data
                         self.__parsed_data.append(
-                            [img_id, img_ann["id"], img_kps[:-6], target])
+                            [img_id, img_ann["id"], normalized_kps[:-6], target])
                     else:
                         logging.debug(
                             f"[ImageParse]: REJECTED, Not enough kps visible for image {img_id}")
