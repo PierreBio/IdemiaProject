@@ -69,6 +69,7 @@ class ImageProcessor:
         Returns:
             List of normalized keypoints.
         """
+        # TODO: add divisor check
         x0, y0, w, h = bbox
         for i in range(0, len(keypoints), 3):
             keypoints[i] = (keypoints[i] - x0) / w
