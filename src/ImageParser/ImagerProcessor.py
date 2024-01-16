@@ -173,7 +173,7 @@ class ImageProcessor:
     # -----------------------------------------------------------------------------
     # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def generate_occluded_data(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
+    def generate_occluded_keypoints(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
@@ -232,6 +232,52 @@ class ImageProcessor:
             augmented_data.append([img_id, ann_id, occluded_keypoints, target])
 
         return augmented_data
+
+    def generate_occluded_box(self, data, occlusion_chance=0.8, range_occlusion = (0.5 , 1),include_original_data=True ):
+        """ Augments the data by duplicating each entry with keypoints normalized wtih the occluded box.
+
+        Args:
+            data (list): data to augment
+            occlusion_chance (float): chance to apply occlusion to the box
+            range_occlusion (tuple): range of the occlusion (min, max) for the height of the box
+            include_original_data (bool): If True (default), include original data alongside occluded data
+
+        Returns:
+            list: Augmented data with each original entry followed by an occluded version
+
+        Note:
+            Calling this method, does not affect the internal parsed data. The returned augmented
+            data will be lost if not stored.
+        """
+        if include_original_data:
+            augmented_data = self.__parsed_data.copy()
+        else:
+            augmented_data = []
+        # Get all image ids
+        for data_point in data:
+            img_id, ann_id, keypoints, target = data_point
+            
+            # Get all annotations for the id to get the box
+            img_ann = self.__coco_db.loadAnns(ann_id)
+            img_ann = img_ann[0]
+            box = img_ann["bbox"]
+            box_occluded = box.copy()
+
+            # Apply occlusion randomly based on calculated chance
+            random_value = random.uniform(range_occlusion[0], range_occlusion[1])
+            if random.random() < occlusion_chance:
+                box_occluded[3] = box_occluded[3] * random_value
+
+            # Normalize keypoints after occlusion of the box
+            normalized_kps = self.__normalize_keypoints(keypoints, box_occluded)
+            
+            # Add the normalized keypoints to the augmented data
+            data_point[2] = normalized_kps
+            augmented_data.append(data_point)
+
+        return augmented_data
+
+           
 
     # -----------------------------------------------------------------------------
     # display_images
