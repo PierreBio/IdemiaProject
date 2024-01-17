@@ -1,4 +1,4 @@
-
+*venv*
 occluded_only.csv
 orignal_data.csv
 build/*
@@ -7,3 +7,4 @@ dist/*
 idemia_env/*
 *.egg-info/*
 *.pyc
+*.csv
