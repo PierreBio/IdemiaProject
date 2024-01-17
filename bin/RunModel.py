@@ -1,3 +1,5 @@
+
+import os
 import pandas as pd
 import numpy as np
 import torch
@@ -8,13 +10,23 @@ from sklearn.metrics import mean_squared_error, r2_score
 import ast
 import matplotlib.pyplot as plt
 
-
 def csv_string_to_list(string):
     try:
         return ast.literal_eval(string)
     except ValueError:
         raise Exception("Could not process data, verify csv file")
 
+def record_hyperparameters_performance(lr, batch_size, rmse, csv_file="model_performance.csv"):
+    data = {
+        "Learning Rate": [lr],
+        "Batch Size": [batch_size],
+        "RMSE": [rmse]
+    }
+    df = pd.DataFrame(data)
+    if os.path.isfile(csv_file):
+        df.to_csv(csv_file, mode='a', index=False, header=False, sep=';')
+    else:
+        df.to_csv(csv_file, mode='w', index=False, header=True, sep=';')
 
 # Define the Dataset Class
 class KeypointsDataset(Dataset):
@@ -115,6 +127,8 @@ for lr in learning_rates:
         mse = mean_squared_error(y_true, y_pred)
         rmse = np.sqrt(mse)
         print(f"RMSE: {rmse}")
+
+        record_hyperparameters_performance(lr, batch_size, rmse)
 
         # Best hyperparameters update
         if rmse < best_rmse:
