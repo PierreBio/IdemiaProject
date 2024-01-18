@@ -172,7 +172,7 @@ class ImageProcessor:
         return self.__parsed_data
 
     # -----------------------------------------------------------------------------
-    # generate_occluded_data
+    # generate_occluded_keypoints
     # -----------------------------------------------------------------------------
     def generate_occluded_keypoints(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
@@ -257,7 +257,7 @@ class ImageProcessor:
         # Get all image ids
         for data_point in data:
             img_id, ann_id, keypoints, target = data_point
-            
+
             # Get all annotations for the id to get the box
             img_ann = self.__coco_db.loadAnns(ann_id)
             img_ann = img_ann[0]
@@ -271,14 +271,14 @@ class ImageProcessor:
 
             # Normalize keypoints after occlusion of the box
             normalized_kps = self.__normalize_keypoints(keypoints, box_occluded)
-            
+
             # Add the normalized keypoints to the augmented data
             data_point[2] = normalized_kps
             augmented_data.append(data_point)
 
         return augmented_data
 
-           
+
 
     # -----------------------------------------------------------------------------
     # display_images

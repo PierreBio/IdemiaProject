@@ -96,6 +96,11 @@ best_rmse = float('inf')
 best_lr = None
 best_batch_size = None
 
+# Initialize for the worst model
+worst_rmse = float('-inf')
+worst_lr = None
+worst_batch_size = None
+
 # Grid search over learning rates and batch sizes
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -128,16 +133,21 @@ for lr in learning_rates:
         rmse = np.sqrt(mse)
         print(f"RMSE: {rmse}")
 
-        record_hyperparameters_performance(lr, batch_size, rmse)
-
         # Best hyperparameters update
         if rmse < best_rmse:
             best_rmse = rmse
             best_lr = lr
             best_batch_size = batch_size
 
-# Output the best hyperparameter set
+        if rmse > worst_rmse:
+            worst_rmse = rmse
+            worst_lr = lr
+            worst_batch_size = batch_size
+
+# Output noticeable hyperparameter sets
 print(f"Best Hyperparameters => Learning rate: {best_lr}, Batch size: {best_batch_size}, RMSE: {best_rmse}")
+record_hyperparameters_performance(best_lr, best_batch_size, best_rmse, "best_model_performance.csv")
+record_hyperparameters_performance(worst_lr, worst_batch_size, worst_rmse, "worst_model_performance.csv")
 
 # # Plot test
 # plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
