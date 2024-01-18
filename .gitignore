@@ -1,8 +1,12 @@
-
+*venv*
 occluded_only.csv
 orignal_data.csv
 build/*
 dist/*
 *.egg-info/*
 *.pyc
+<<<<<<< HEAD
 idemia_env/*
+=======
+*.csv
+>>>>>>> origin/DEV_MODEL

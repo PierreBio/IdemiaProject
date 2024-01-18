@@ -56,6 +56,27 @@ class ImageProcessor:
         return visible_percentage >= threshold
 
     # -----------------------------------------------------------------------------
+    # __normalize_keypoints
+    # -----------------------------------------------------------------------------
+    @staticmethod
+    def __normalize_keypoints(keypoints, bbox):
+        """ Normalizes keypoints to be relative to the bounding box.
+
+        Args:
+            keypoints: List of keypoints for an image.
+            bbox: Bounding box with [x0, y0, width, height].
+
+        Returns:
+            List of normalized keypoints.
+        """
+        # TODO: add divisor check
+        x0, y0, w, h = bbox
+        for i in range(0, len(keypoints), 3):
+            keypoints[i] = (keypoints[i] - x0) / w
+            keypoints[i + 1] = (keypoints[i + 1] - y0) / h
+        return keypoints
+
+    # -----------------------------------------------------------------------------
     # __parse_images
     # -----------------------------------------------------------------------------
     def __parse_images(self, image_ids, threshold) -> None:
@@ -75,22 +96,23 @@ class ImageProcessor:
 
             # Iterating through image annotations
             for img_ann in img_anns:
-                img_kps = img_ann["keypoints"]
+                # Normalize keypoints
+                normalized_kps = self.__normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
 
                 # Checking feets visibility (for scientific purpose only)
                 # Feets are last 2 sets of kps
-                if img_kps[-1] != 0 and img_kps[-4] != 0:
+                if normalized_kps[-1] != 0 and normalized_kps[-4] != 0:
                     # Computing % of visible kps
-                    if self.__kps_visibility_check(img_kps[:-6], threshold):
+                    if self.__kps_visibility_check(normalized_kps[:-6], threshold):
                         logging.debug(f"[ImageParse]: ACCEPTED Img {img_id}")
 
                         # Computing distance between 2 feets
-                        target = [(img_kps[-3] + img_kps[-6]) / 2,
-                                  (img_kps[-5] + img_kps[-2]) / 2]
+                        target = [(normalized_kps[-3] + normalized_kps[-6]) / 2,
+                                  (normalized_kps[-5] + normalized_kps[-2]) / 2]
 
                         # Adding accepted data to parsed_data
                         self.__parsed_data.append(
-                            [img_id, img_ann["id"], img_kps[:-6], target])
+                            [img_id, img_ann["id"], normalized_kps[:-6], target])
                     else:
                         logging.debug(
                             f"[ImageParse]: REJECTED, Not enough kps visible for image {img_id}")
@@ -151,7 +173,7 @@ class ImageProcessor:
     # -----------------------------------------------------------------------------
     # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def generate_occluded_data(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
+    def generate_occluded_keypoints(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
@@ -210,6 +232,52 @@ class ImageProcessor:
             augmented_data.append([img_id, ann_id, occluded_keypoints, target])
 
         return augmented_data
+
+    def generate_occluded_box(self, data, occlusion_chance=0.8, range_occlusion = (0.5 , 1),include_original_data=True ):
+        """ Augments the data by duplicating each entry with keypoints normalized wtih the occluded box.
+
+        Args:
+            data (list): data to augment
+            occlusion_chance (float): chance to apply occlusion to the box
+            range_occlusion (tuple): range of the occlusion (min, max) for the height of the box
+            include_original_data (bool): If True (default), include original data alongside occluded data
+
+        Returns:
+            list: Augmented data with each original entry followed by an occluded version
+
+        Note:
+            Calling this method, does not affect the internal parsed data. The returned augmented
+            data will be lost if not stored.
+        """
+        if include_original_data:
+            augmented_data = self.__parsed_data.copy()
+        else:
+            augmented_data = []
+        # Get all image ids
+        for data_point in data:
+            img_id, ann_id, keypoints, target = data_point
+            
+            # Get all annotations for the id to get the box
+            img_ann = self.__coco_db.loadAnns(ann_id)
+            img_ann = img_ann[0]
+            box = img_ann["bbox"]
+            box_occluded = box.copy()
+
+            # Apply occlusion randomly based on calculated chance
+            random_value = random.uniform(range_occlusion[0], range_occlusion[1])
+            if random.random() < occlusion_chance:
+                box_occluded[3] = box_occluded[3] * random_value
+
+            # Normalize keypoints after occlusion of the box
+            normalized_kps = self.__normalize_keypoints(keypoints, box_occluded)
+            
+            # Add the normalized keypoints to the augmented data
+            data_point[2] = normalized_kps
+            augmented_data.append(data_point)
+
+        return augmented_data
+
+           
 
     # -----------------------------------------------------------------------------
     # display_images

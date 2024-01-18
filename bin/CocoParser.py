@@ -5,27 +5,39 @@ from src.Common.utils import *
 
 
 def main():
-    file = os.path.join("..",
-                        "Coco",
-                        "annotations_trainval2017",
-                        "person_keypoints_val2017.json")
-    coco_parser = ImageProcessor(file)
+    # Training
+    train_file = os.path.join("..",
+                              "Coco",
+                              "annotations_trainval2017",
+                              "person_keypoints_val2017.json")
+    coco_parser = ImageProcessor(train_file)
     original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
-    occluded_only = coco_parser.generate_occluded_data("upper_body", 0.8, 5, False)
+    data_with_occlusion_keypoints = coco_parser.generate_occluded_keypoints("upper_body", 0.8, 5, True)
+    data_with_occlusion = coco_parser.generate_occluded_box(data_with_occlusion_keypoints)
 
     headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("orignal_data.csv", headers, original_data)
-    save_to_csv("occluded_only_w_threshold.csv", headers, occluded_only)
+    save_to_csv("train_data_original.csv", headers, original_data)
+    save_to_csv("train_data_with_occlusion.csv", headers, data_with_occlusion)
+
+    train_file = os.path.join("..",
+                              "Coco",
+                              "annotations_trainval2017",
+                              "person_keypoints_val2017.json")
+    coco_parser = ImageProcessor(train_file)
+    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
+
+    headers = ["img_id", "pedestrian_id", "keypoints", "target"]
+    save_to_csv("test_data.csv", headers, original_data)
 
 
 def visualize():
     print("ORIGINAL DATA")
     print("=============")
-    visualize_csv_stats("orignal_data.csv")
+    visualize_csv_stats("train_data_original.csv")
 
     print("\nOCCLUDED DATA")
     print("=============")
-    visualize_csv_stats("occluded_only_w_threshold.csv")
+    visualize_csv_stats("train_data_with_occlusion.csv")
 
 
 def startup_msg():
@@ -34,5 +46,5 @@ def startup_msg():
 
 if __name__ == "__main__":
     startup_msg()
-    # main()
+    main()
     visualize()
