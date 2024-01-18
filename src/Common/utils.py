@@ -2,6 +2,8 @@ import csv
 import pandas as pd
 from tabulate import tabulate
 import math
+import random
+import numpy as np
 
 
 # -----------------------------------------------------------------------------
@@ -72,3 +74,101 @@ def visualize_csv_stats(file_path):
     # Print table & return results
     print(tabulate(stats.items(), headers=["Statistic", "Value"], floatfmt=".2f", stralign="left"))
     return stats
+
+
+def apply_keypoints_occlusion(inputs,
+                              weight_position="",
+                              weight_value=0.7,
+                              min_visible_threshold=5):
+    """
+    Applies occlusion to a batch of keypoints based on the specified parameters.
+
+    Args:
+        inputs (array-like): Array of keypoints for each data point in the batch.
+        weight_position (str): "lower_body", "upper_body", or "" for random occlusion.
+        weight_value (float): Weight value to determine occlusion probability.
+        min_visible_threshold (int): Minimum visible keypoints in an image.
+
+    Returns:
+        np.array: Array of keypoints with occlusion applied.
+    """
+    occluded_inputs = []
+
+    # Define ranges for upper and lower body keypoints
+    upper_body_range = range(0, 33)  # Upper body contains 11 keypoints
+    lower_body_range = range(33, 45)  # Lower body contains 4 keypoints (excluding ankles)
+
+    for keypoints in inputs:
+        # Count non-visible keypoints
+        non_visible_count = keypoints.count(0) // 3
+
+        # Skip this keypoints list if non-visible keypoints exceed the threshold
+        if non_visible_count > min_visible_threshold:
+            occluded_inputs.append(keypoints)
+            continue
+
+        # Initialize occluded keypoints
+        occluded_keypoints = keypoints.copy()
+
+        for i in range(len(occluded_keypoints) // 3):
+            if non_visible_count > min_visible_threshold:
+                break
+
+            # Determine occlusion probability
+            occlusion_chance = weight_value if ((weight_position == "lower_body" and i in lower_body_range) or
+                                                (weight_position == "upper_body" and i in upper_body_range)) else 1 - weight_value
+
+            # Apply occlusion
+            if random.random() < occlusion_chance:
+                occluded_keypoints[3 * i:3 * i + 3] = [0, 0, 0]
+                non_visible_count += 1
+
+        occluded_inputs.append(occluded_keypoints)
+
+    return np.array(occluded_inputs)
+
+
+def apply_box_occlusion(img_ids, inputs, targets=None, occlusion_chance=0.8, range_occlusion=(0.5, 1)):
+    """
+    Applies occlusion to keypoints based on the corresponding image annotations.
+
+    Args:
+        img_ids (array-like): Array of image IDs corresponding to each data point in the batch.
+        inputs (array-like): Array of keypoints for each data point in the batch.
+        targets (array-like, optional): Array of target values for each data point in the batch.
+        occlusion_chance (float): Probability of applying occlusion to a given set of keypoints.
+        range_occlusion (tuple): Range (min, max) for the scaling factor of occlusion.
+
+    Returns:
+        tuple: A tuple containing occluded inputs, and optionally occluded targets if targets are not None.
+               Format: (occluded_inputs, occluded_targets) or occluded_inputs if targets is None.
+
+    Note:
+        This function assumes access to a COCO-style database (`self.__coco_db`) to fetch annotations
+        based on image IDs, and a method `self.__normalize_keypoints` for normalizing keypoints.
+    """
+    return apply_keypoints_occlusion(inputs, "upper_body")
+    # occluded_inputs = []
+    # occluded_targets = []
+    #
+    # for idx, img_id in enumerate(img_ids):
+    #     keypoints = inputs[idx]
+    #     target = targets[idx] if targets is not None else None
+    #
+    #     img_ann = self.__coco_db.loadAnns(img_id)
+    #     img_ann = img_ann[0]
+    #     box = img_ann["bbox"]
+    #     box_occluded = box.copy()
+    #
+    #     random_value = random.uniform(range_occlusion[0], range_occlusion[1])
+    #     if random.random() < occlusion_chance:
+    #         box_occluded[3] = box_occluded[3] * random_value
+    #
+    #     normalized_kps = self.__normalize_keypoints(keypoints, box_occluded)
+    #
+    #     occluded_inputs.append(normalized_kps)
+    #     if target is not None:
+    #         occluded_targets.append(target)
+    #
+    # return (np.array(occluded_inputs), np.array(occluded_targets)) if targets is not None else np.array(
+    #     occluded_inputs)

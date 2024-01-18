@@ -4,6 +4,7 @@ import random
 import matplotlib.pyplot as plt
 from pycocotools.coco import COCO
 import skimage.io as io
+import numpy as np
 
 
 # -----------------------------------------------------------------------------
@@ -70,10 +71,12 @@ class ImageProcessor:
             List of normalized keypoints.
         """
         # TODO: add divisor check
-        x0, y0, w, h = bbox
+        x0, y0, width, height = bbox
+        if width == 0 or height == 0:
+            raise Exception(f"Error while normalizing: width={width} | height={height}")
         for i in range(0, len(keypoints), 3):
-            keypoints[i] = (keypoints[i] - x0) / w
-            keypoints[i + 1] = (keypoints[i + 1] - y0) / h
+            keypoints[i] = (keypoints[i] - x0) / width
+            keypoints[i + 1] = (keypoints[i + 1] - y0) / height
         return keypoints
 
     # -----------------------------------------------------------------------------
@@ -97,7 +100,11 @@ class ImageProcessor:
             # Iterating through image annotations
             for img_ann in img_anns:
                 # Normalize keypoints
-                normalized_kps = self.__normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
+                try:
+                    normalized_kps = self.__normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
+                except Exception as e:
+                    print(f"Error while processing image {img_id}")
+                    pass
 
                 # Checking feets visibility (for scientific purpose only)
                 # Feets are last 2 sets of kps
@@ -173,13 +180,19 @@ class ImageProcessor:
     # -----------------------------------------------------------------------------
     # generate_occluded_data
     # -----------------------------------------------------------------------------
-    def generate_occluded_keypoints(self, weight_position="", weight_value=0.7, min_visible_threshold=5, include_original_data=True):
+    def generate_occluded_keypoints(self,
+                                    weight_position="",
+                                    weight_value=0.7,
+                                    min_visible_threshold=5,
+                                    include_original_data=True):
         """ Augments the data by duplicating each entry with occluded keypoints.
 
         Args:
+
             weight_position (str): "lower_body" or "upper_body" to bias the occlusion, "" for completely random
             weight_value (float): weight value with default = 0.7,
                                   non targeted parts will have the weight of 1-weight_value
+            min_visible_threshold: Minimum visible keypoints in an image (ensure image cannot be fully occluded)
             include_original_data (bool): If True (default), include original data alongside occluded data
 
         Returns:
@@ -233,11 +246,10 @@ class ImageProcessor:
 
         return augmented_data
 
-    def generate_occluded_box(self, data, occlusion_chance=0.8, range_occlusion = (0.5 , 1),include_original_data=True ):
-        """ Augments the data by duplicating each entry with keypoints normalized wtih the occluded box.
+    def generate_occluded_box(self, occlusion_chance=0.8, range_occlusion=(0.5, 1), include_original_data=True):
+        """ Augments the data by duplicating each entry with keypoints normalized with the occluded box.
 
         Args:
-            data (list): data to augment
             occlusion_chance (float): chance to apply occlusion to the box
             range_occlusion (tuple): range of the occlusion (min, max) for the height of the box
             include_original_data (bool): If True (default), include original data alongside occluded data
@@ -253,9 +265,10 @@ class ImageProcessor:
             augmented_data = self.__parsed_data.copy()
         else:
             augmented_data = []
+
         # Get all image ids
-        for data_point in data:
-            img_id, ann_id, keypoints, target = data_point
+        for data_point in self.__parsed_data:
+            img_id, ann_id, keypoints, target = self.__parsed_data
             
             # Get all annotations for the id to get the box
             img_ann = self.__coco_db.loadAnns(ann_id)
@@ -276,8 +289,6 @@ class ImageProcessor:
             augmented_data.append(data_point)
 
         return augmented_data
-
-           
 
     # -----------------------------------------------------------------------------
     # display_images

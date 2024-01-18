@@ -7,7 +7,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import ast
 import matplotlib.pyplot as plt
+import random
 
+from src.Common.utils import apply_box_occlusion, apply_keypoints_occlusion
 
 def csv_string_to_list(string):
     try:
@@ -18,15 +20,16 @@ def csv_string_to_list(string):
 
 # Define the Dataset Class
 class KeypointsDataset(Dataset):
-    def __init__(self, X, y):
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.float32)
+    def __init__(self, dataframe):
+        self.keypoints = np.array(dataframe['keypoints'].tolist(), dtype=np.float32)
+        self.targets = np.array(dataframe['target'].tolist(), dtype=np.float32)
+        self.img_ids = dataframe['img_id'].values
 
     def __len__(self):
-        return len(self.X)
+        return len(self.keypoints)
 
     def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+        return self.img_ids[idx], self.keypoints[idx], self.targets[idx]
 
 
 # Define the Neural Network Model
@@ -45,35 +48,32 @@ class MLP(nn.Module):
         return self.layers(x)
 
 
-# Reading Train CSV data
+# Reading Train & Test CSV data
 df_train = pd.read_csv('train_data_original.csv')
 df_train['keypoints'] = df_train['keypoints'].apply(csv_string_to_list)
 df_train['target'] = df_train['target'].apply(csv_string_to_list)
 
-X_train = np.array(df_train['keypoints'].tolist(), dtype=np.float32)
-y_train = np.array(df_train['target'].tolist(), dtype=np.float32)
-
-# Reading Train CSV data
 df_test = pd.read_csv('test_data.csv')
 df_test['keypoints'] = df_test['keypoints'].apply(csv_string_to_list)
 df_test['target'] = df_test['target'].apply(csv_string_to_list)
 
-X_test = np.array(df_test['keypoints'].tolist(), dtype=np.float32)
-y_test = np.array(df_test['target'].tolist(), dtype=np.float32)
+# DataLoaders (train & test)
+train_dataset = KeypointsDataset(df_train)
 
 # DataLoaders (train & test)
-train_dataset = KeypointsDataset(X_train, y_train)
-train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
+test_dataset = KeypointsDataset(df_test)
 
-# DataLoaders (train & test)
-test_dataset = KeypointsDataset(X_test, y_test)
-test_loader = DataLoader(test_dataset, batch_size=10, shuffle=True)
+# DataLoaders
+batch_size = 10
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 # Initialize model parameters
-input_size = len(X_train[0])  # Features
+input_size = len(train_dataset[0][1])  # Features
 output_size = 2  # Target (left_ankle, right_ankle)
+model = MLP(input_size, output_size)
 loss_function = nn.MSELoss()
-epochs = 5
+epochs = 10
 
 # Hyperparameters testing
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
@@ -88,16 +88,23 @@ best_batch_size = None
 for lr in learning_rates:
     for batch_size in batch_sizes:
         print(f"Training with learning rate: {lr}, batch size: {batch_size}")
-        model = MLP(input_size, output_size)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
         # Training Loop
         for epoch in range(epochs):
             model.train()
-            for inputs, targets in train_loader:
+            for img_id, inputs, targets in train_loader:
+                # Randomly choose an occlusion method
+                occlusion_type = random.choice(["box", "keypoints"])
+
+                # Apply chosen occlusion
+                if occlusion_type == 'box':
+                    occluded_inputs = apply_box_occlusion(img_id, inputs)
+                else:  # keypoints
+                    occluded_inputs = apply_keypoints_occlusion(inputs, "upper_body")
+
                 optimizer.zero_grad()
-                outputs = model(inputs)
+                outputs = model(occluded_inputs)
                 loss = loss_function(outputs, targets)
                 loss.backward()
                 optimizer.step()
@@ -125,6 +132,7 @@ for lr in learning_rates:
 # Output the best hyperparameter set
 print(f"Best Hyperparameters => Learning rate: {best_lr}, Batch size: {best_batch_size}, RMSE: {best_rmse}")
 
+# TODO: plot loss curve
 # # Plot test
 # plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
 # plt.xlabel("Actual Values")
