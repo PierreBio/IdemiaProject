@@ -16,10 +16,11 @@ def csv_string_to_list(string):
     except ValueError:
         raise Exception("Could not process data, verify csv file")
 
-def record_hyperparameters_performance(lr, batch_size, rmse, csv_file="model_performance.csv"):
+def record_hyperparameters_performance(lr, batch_size, rmse, layers, csv_file="model_performance.csv"):
     data = {
         "Learning Rate": [lr],
         "Batch Size": [batch_size],
+        "Layers": [str(layers)],
         "RMSE": [rmse]
     }
     df = pd.DataFrame(data)
@@ -43,15 +44,19 @@ class KeypointsDataset(Dataset):
 
 # Define the Neural Network Model
 class MLP(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, layers):
         super(MLP, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_size)
-        )
+        self.layers = nn.Sequential()
+
+        # Créer les couches cachées dynamiquement
+        last_size = input_size
+        for i, layer_size in enumerate(layers):
+            self.layers.add_module(f"Linear_{i}", nn.Linear(last_size, layer_size))
+            self.layers.add_module(f"ReLU_{i}", nn.ReLU())
+            last_size = layer_size
+
+        # Ajouter la dernière couche
+        self.layers.add_module("Output", nn.Linear(last_size, output_size))
 
     def forward(self, x):
         return self.layers(x)
@@ -95,19 +100,25 @@ batch_sizes = [16, 32, 64, 128]
 best_rmse = float('inf')
 best_lr = None
 best_batch_size = None
+best_layers = None
 
 # Initialize for the worst model
 worst_rmse = float('-inf')
 worst_lr = None
 worst_batch_size = None
+worst_layers = None
+
+layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
 
 # Grid search over learning rates and batch sizes
 for lr in learning_rates:
     for batch_size in batch_sizes:
-        print(f"Training with learning rate: {lr}, batch size: {batch_size}")
-        model = MLP(input_size, output_size)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        for layers in layer_configurations:
+            # Afficher la configuration actuelle
+            print(f"Training with learning rate: {lr}, batch size: {batch_size}, layers: {layers}")
+            model = MLP(input_size, output_size, layers)
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
         # Training Loop
         for epoch in range(epochs):
@@ -138,16 +149,18 @@ for lr in learning_rates:
             best_rmse = rmse
             best_lr = lr
             best_batch_size = batch_size
+            best_layers = layers
 
         if rmse > worst_rmse:
             worst_rmse = rmse
             worst_lr = lr
             worst_batch_size = batch_size
+            worst_layers = layers
 
 # Output noticeable hyperparameter sets
 print(f"Best Hyperparameters => Learning rate: {best_lr}, Batch size: {best_batch_size}, RMSE: {best_rmse}")
-record_hyperparameters_performance(best_lr, best_batch_size, best_rmse, "best_model_performance.csv")
-record_hyperparameters_performance(worst_lr, worst_batch_size, worst_rmse, "worst_model_performance.csv")
+record_hyperparameters_performance(best_lr, best_batch_size, best_rmse, best_layers, "best_model_performance.csv")
+record_hyperparameters_performance(worst_lr, worst_batch_size, worst_rmse, worst_layers, "worst_model_performance.csv")
 
 # # Plot test
 # plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
