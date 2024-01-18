@@ -99,6 +99,8 @@ epochs = 5
 # Hyperparameters testing
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
 batch_sizes = [16, 32, 64, 128]
+layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
+activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]  # Exemples de fonctions d'activation
 
 # Best Hyperparameters init
 best_rmse = float('inf')
@@ -113,10 +115,6 @@ worst_lr = None
 worst_batch_size = None
 worst_layers = None
 worst_activation_fn = None
-
-layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
-
-activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]  # Exemples de fonctions d'activation
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
