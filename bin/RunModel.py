@@ -114,7 +114,7 @@ for lr in learning_rates:
         y_pred = []
         y_true = []
         with torch.no_grad():
-            for inputs, targets in test_loader:
+            for img_id, inputs, targets in test_loader:
                 outputs = model(inputs)
                 y_pred.extend(outputs.tolist())
                 y_true.extend(targets.tolist())

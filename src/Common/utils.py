@@ -4,7 +4,7 @@ from tabulate import tabulate
 import math
 import random
 import numpy as np
-
+import torch
 
 # -----------------------------------------------------------------------------
 # save_to_csv
@@ -81,51 +81,48 @@ def apply_keypoints_occlusion(inputs,
                               weight_value=0.7,
                               min_visible_threshold=5):
     """
-    Applies occlusion to a batch of keypoints based on the specified parameters.
+    Applies occlusion to a batch of keypoints based on specified parameters.
 
     Args:
-        inputs (array-like): Array of keypoints for each data point in the batch.
+        inputs (Tensor): A batch of keypoints, where each keypoint has 3 values.
         weight_position (str): "lower_body", "upper_body", or "" for random occlusion.
         weight_value (float): Weight value to determine occlusion probability.
-        min_visible_threshold (int): Minimum visible keypoints in an image.
+        min_visible_threshold (int): Minimum number of visible keypoints in an image.
 
     Returns:
-        np.array: Array of keypoints with occlusion applied.
+        Tensor: Batch of keypoints with occlusion applied.
     """
     occluded_inputs = []
 
     # Define ranges for upper and lower body keypoints
-    upper_body_range = range(0, 33)  # Upper body contains 11 keypoints
-    lower_body_range = range(33, 45)  # Lower body contains 4 keypoints (excluding ankles)
+    upper_body_range = range(0, 11)
+    lower_body_range = range(11, 15)
 
     for keypoints in inputs:
-        # Count non-visible keypoints
-        non_visible_count = keypoints.count(0) // 3
+        keypoints_reshaped = keypoints.view(-1, 3)  # Reshape to have 3 elements per row
+        non_visible_count = torch.sum(torch.all(keypoints_reshaped == 0, dim=1)).item()
 
-        # Skip this keypoints list if non-visible keypoints exceed the threshold
+        # Skip this keypoints if non-visible keypoints exceed the threshold
         if non_visible_count > min_visible_threshold:
             occluded_inputs.append(keypoints)
             continue
 
-        # Initialize occluded keypoints
-        occluded_keypoints = keypoints.copy()
+        occluded_keypoints = keypoints.clone()
 
-        for i in range(len(occluded_keypoints) // 3):
+        for i in range(keypoints_reshaped.size(0)):
             if non_visible_count > min_visible_threshold:
                 break
 
-            # Determine occlusion probability
             occlusion_chance = weight_value if ((weight_position == "lower_body" and i in lower_body_range) or
                                                 (weight_position == "upper_body" and i in upper_body_range)) else 1 - weight_value
 
-            # Apply occlusion
             if random.random() < occlusion_chance:
-                occluded_keypoints[3 * i:3 * i + 3] = [0, 0, 0]
+                occluded_keypoints[3*i:3*i+3] = torch.tensor([0, 0, 0])
                 non_visible_count += 1
 
         occluded_inputs.append(occluded_keypoints)
 
-    return np.array(occluded_inputs)
+    return torch.stack(occluded_inputs)
 
 
 def apply_box_occlusion(img_ids, inputs, targets=None, occlusion_chance=0.8, range_occlusion=(0.5, 1)):
