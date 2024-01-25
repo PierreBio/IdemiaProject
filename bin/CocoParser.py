@@ -11,22 +11,21 @@ def main():
                               "annotations_trainval2017",
                               "person_keypoints_train2017.json")
     coco_parser = ImageProcessor(train_file)
-    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
-    # data_with_occlusion_keypoints = coco_parser.generate_occluded_keypoints("upper_body", 0.8, 5, False)
+    train_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
 
-    headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("train_data_original.csv", headers, original_data)
-    # save_to_csv("train_data_with_occlusion.csv", headers, data_with_occlusion)
+    headers = ["img_id", "pedestrian_id", "bbox", "keypoints", "target"]
+    save_to_csv("train_data.csv", headers, train_data)
 
-    train_file = os.path.join("..",
-                              "Coco",
-                              "annotations_trainval2017",
-                              "person_keypoints_val2017.json")
-    coco_parser = ImageProcessor(train_file)
-    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
+    # Validation
+    val_file = os.path.join("..",
+                            "Coco",
+                            "annotations_trainval2017",
+                            "person_keypoints_val2017.json")
+    coco_parser = ImageProcessor(val_file)
+    val_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
 
-    headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("test_data.csv", headers, original_data)
+    headers = ["img_id", "pedestrian_id", "bbox", "keypoints", "target"]
+    save_to_csv("validation_data.csv", headers, val_data)
 
 
 def visualize():

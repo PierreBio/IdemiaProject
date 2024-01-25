@@ -5,6 +5,9 @@ import math
 import random
 import numpy as np
 import torch
+import os
+from datetime import datetime
+
 
 # -----------------------------------------------------------------------------
 # save_to_csv
@@ -29,6 +32,41 @@ def save_to_csv(file, headers, data_list):
         writer.writerow(headers)
         for row in data_list:
             writer.writerow(row if isinstance(row, list) else [row])
+
+
+# -----------------------------------------------------------------------------
+# record_results
+# -----------------------------------------------------------------------------
+def record_results(performance_data, csv_file="./results/model_performance.csv"):
+    """
+    Records the performance of hyperparameters into a CSV file.
+
+    Args:
+        performance_data (dict): A dictionary containing the performance data.
+        csv_file (str, optional): Path to the CSV file where performance data will be saved.
+                                  Defaults to "./results/model_performance.csv".
+
+    The function creates a new file or appends to an existing one, organizing the data by ascending RMSE values.
+    """
+
+    # Ensure the results directory exists
+    results_dir = os.path.dirname(csv_file)
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Add the current date to the data
+    performance_data["Date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Convert the data to a DataFrame
+    df = pd.DataFrame([performance_data])
+
+    # Append to existing file or write a new file
+    if os.path.isfile(csv_file):
+        existing_df = pd.read_csv(csv_file, sep=";")
+        df = pd.concat([existing_df, df])
+
+    # Sort by RMSE and save
+    df.sort_values(by="RMSE", inplace=True)
+    df.to_csv(csv_file, index=False, header=True, sep=";")
 
 
 # -----------------------------------------------------------------------------
@@ -125,47 +163,3 @@ def apply_keypoints_occlusion(inputs,
     return torch.stack(occluded_inputs)
 
 
-def apply_box_occlusion(img_ids, inputs, targets=None, occlusion_chance=0.8, range_occlusion=(0.5, 1)):
-    """
-    Applies occlusion to keypoints based on the corresponding image annotations.
-
-    Args:
-        img_ids (array-like): Array of image IDs corresponding to each data point in the batch.
-        inputs (array-like): Array of keypoints for each data point in the batch.
-        targets (array-like, optional): Array of target values for each data point in the batch.
-        occlusion_chance (float): Probability of applying occlusion to a given set of keypoints.
-        range_occlusion (tuple): Range (min, max) for the scaling factor of occlusion.
-
-    Returns:
-        tuple: A tuple containing occluded inputs, and optionally occluded targets if targets are not None.
-               Format: (occluded_inputs, occluded_targets) or occluded_inputs if targets is None.
-
-    Note:
-        This function assumes access to a COCO-style database (`self.__coco_db`) to fetch annotations
-        based on image IDs, and a method `self.__normalize_keypoints` for normalizing keypoints.
-    """
-    return apply_keypoints_occlusion(inputs, "upper_body")
-    # occluded_inputs = []
-    # occluded_targets = []
-    #
-    # for idx, img_id in enumerate(img_ids):
-    #     keypoints = inputs[idx]
-    #     target = targets[idx] if targets is not None else None
-    #
-    #     img_ann = self.__coco_db.loadAnns(img_id)
-    #     img_ann = img_ann[0]
-    #     box = img_ann["bbox"]
-    #     box_occluded = box.copy()
-    #
-    #     random_value = random.uniform(range_occlusion[0], range_occlusion[1])
-    #     if random.random() < occlusion_chance:
-    #         box_occluded[3] = box_occluded[3] * random_value
-    #
-    #     normalized_kps = self.__normalize_keypoints(keypoints, box_occluded)
-    #
-    #     occluded_inputs.append(normalized_kps)
-    #     if target is not None:
-    #         occluded_targets.append(target)
-    #
-    # return (np.array(occluded_inputs), np.array(occluded_targets)) if targets is not None else np.array(
-    #     occluded_inputs)
