@@ -9,6 +9,9 @@ from sklearn.metrics import mean_squared_error
 import ast
 import matplotlib.pyplot as plt
 
+#Set the device on GPU with CUDA if he's available
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 def csv_string_to_list(string):
     try:
         return ast.literal_eval(string)
@@ -46,7 +49,7 @@ class KeypointsDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+        return self.X[idx].to(device), self.y[idx].to(device)
 
 
 # Define the Neural Network Model
@@ -54,6 +57,7 @@ class MLP(nn.Module):
     def __init__(self, input_size, output_size, layers, activation_fn):
         super(MLP, self).__init__()
         self.layers = nn.Sequential()
+        self.to(device)
 
         # Créer les couches cachées dynamiquement
         last_size = input_size
@@ -120,8 +124,11 @@ for lr in learning_rates:
                 # Training Loop
                 for epoch in range(epochs):
                     model.train()
+                    model.to(device)
                     total_loss = 0
                     for inputs, targets in train_loader:
+                        inputs = inputs.to(device)
+                        targets = targets.to(device)
                         optimizer.zero_grad()
                         outputs = model(inputs)
                         loss = loss_function(outputs, targets)
