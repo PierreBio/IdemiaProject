@@ -1,4 +1,4 @@
-
+import datetime
 import os
 import pandas as pd
 import numpy as np
@@ -7,7 +7,6 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import mean_squared_error
 import ast
-import matplotlib.pyplot as plt
 
 def csv_string_to_list(string):
     try:
@@ -15,23 +14,26 @@ def csv_string_to_list(string):
     except ValueError:
         raise Exception("Could not process data, verify csv file")
 
-def record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn, csv_file="./results/model_performance.csv"):
+def record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn, epochs, csv_file="./results/model_performance.csv"):
     results_dir = os.path.dirname(csv_file)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
     data = {
+        "Date": [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
         "Learning Rate": [lr],
         "Batch Size": [batch_size],
         "Layers": [str(layers)],
         "Activation Function": [activation_fn],
-        "RMSE": [rmse]
+        "RMSE": [rmse],
+        "Epochs": [epochs]
     }
     df = pd.DataFrame(data)
     if os.path.isfile(csv_file):
-        df.to_csv(csv_file, mode='a', index=False, header=False, sep=";")
-    else:
-        df.to_csv(csv_file, mode='w', index=False, header=True, sep=";")
+        existing_df = pd.read_csv(csv_file, sep=";")
+        df = pd.concat([existing_df, df])
+    df.sort_values(by="RMSE", inplace=True)
+    df.to_csv(csv_file, index=False, header=True, sep=";")
 
 # Define the Dataset Class
 class KeypointsDataset(Dataset):
@@ -94,27 +96,13 @@ test_loader = DataLoader(test_dataset, batch_size=10, shuffle=True)
 input_size = len(X_train[0])  # Features
 output_size = 2  # Target (left_ankle, right_ankle)
 loss_function = nn.MSELoss()
-epochs = 5
+epochs = 10
 
 # Hyperparameters testing
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
 batch_sizes = [16, 32, 64, 128]
 layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
 activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]  # Exemples de fonctions d'activation
-
-# Best Hyperparameters init
-best_rmse = float('inf')
-best_lr = None
-best_batch_size = None
-best_layers = None
-best_activation_fn = None
-
-# Initialize for the worst model
-worst_rmse = float('-inf')
-worst_lr = None
-worst_batch_size = None
-worst_layers = None
-worst_activation_fn = None
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -125,53 +113,26 @@ for lr in learning_rates:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-        # Training Loop
-        for epoch in range(epochs):
-            model.train()
-            for inputs, targets in train_loader:
-                optimizer.zero_grad()
-                outputs = model(inputs)
-                loss = loss_function(outputs, targets)
-                loss.backward()
-                optimizer.step()
+                # Training Loop
+                for epoch in range(epochs):
+                    model.train()
+                    for inputs, targets in train_loader:
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        loss = loss_function(outputs, targets)
+                        loss.backward()
+                        optimizer.step()
 
-        # Model Evaluation
-        model.eval()
-        y_pred = []
-        y_true = []
-        with torch.no_grad():
-            for inputs, targets in test_loader:
-                outputs = model(inputs)
-                y_pred.extend(outputs.tolist())
-                y_true.extend(targets.tolist())
+                # Model Evaluation
+                model.eval()
+                y_pred = []
+                y_true = []
+                with torch.no_grad():
+                    for inputs, targets in test_loader:
+                        outputs = model(inputs)
+                        y_pred.extend(outputs.tolist())
+                        y_true.extend(targets.tolist())
 
-        mse = mean_squared_error(y_true, y_pred)
-        rmse = np.sqrt(mse)
-        print(f"RMSE: {rmse}")
-
-        # Best hyperparameters update
-        if rmse < best_rmse:
-            best_rmse = rmse
-            best_lr = lr
-            best_batch_size = batch_size
-            best_layers = layers
-            best_activation_fn = activation_fn.__name__
-
-        if rmse > worst_rmse:
-            worst_rmse = rmse
-            worst_lr = lr
-            worst_batch_size = batch_size
-            worst_layers = layers
-            worst_activation_fn = activation_fn.__name__
-
-# Output noticeable hyperparameter sets
-print(f"Best Hyperparameters => Learning rate: {best_lr}, Batch size: {best_batch_size}, RMSE: {best_rmse}")
-record_hyperparameters_performance(best_lr, best_batch_size, best_rmse, best_layers, best_activation_fn, "./results/best_model_performance.csv")
-record_hyperparameters_performance(worst_lr, worst_batch_size, worst_rmse, worst_layers, worst_activation_fn, "./results/worst_model_performance.csv")
-
-# # Plot test
-# plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
-# plt.xlabel("Actual Values")
-# plt.ylabel("Predicted Values")
-# plt.title("Predicted vs. Actual Values")
-# plt.show()
+                mse = mean_squared_error(y_true, y_pred)
+                rmse = np.sqrt(mse)
+                record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn.__name__, epochs)
