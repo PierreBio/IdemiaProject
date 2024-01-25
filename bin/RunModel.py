@@ -93,6 +93,7 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
     with torch.no_grad():
         for img_id, inputs, targets, bboxes in p_test_loader:
             inputs = inputs.to(device)
+            targets = targets.to(device)
             outputs = p_model(inputs)
             y_pred.extend(outputs.tolist())
             y_true.extend(targets.tolist())
