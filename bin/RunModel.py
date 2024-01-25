@@ -1,15 +1,13 @@
+import datetime
+import os
 import pandas as pd
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error
 import ast
 import matplotlib.pyplot as plt
-import random
-
-from src.Common.utils import apply_box_occlusion, apply_keypoints_occlusion
 
 def csv_string_to_list(string):
     try:
@@ -17,125 +15,152 @@ def csv_string_to_list(string):
     except ValueError:
         raise Exception("Could not process data, verify csv file")
 
+def record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn, epochs, csv_file="./results/model_performance.csv"):
+    results_dir = os.path.dirname(csv_file)
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    data = {
+        "Date": [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        "Learning Rate": [lr],
+        "Batch Size": [batch_size],
+        "Layers": [str(layers)],
+        "Activation Function": [activation_fn],
+        "RMSE": [rmse],
+        "Epochs": [epochs]
+    }
+    df = pd.DataFrame(data)
+    if os.path.isfile(csv_file):
+        existing_df = pd.read_csv(csv_file, sep=";")
+        df = pd.concat([existing_df, df])
+    df.sort_values(by="RMSE", inplace=True)
+    df.to_csv(csv_file, index=False, header=True, sep=";")
 
 # Define the Dataset Class
 class KeypointsDataset(Dataset):
-    def __init__(self, dataframe):
-        self.keypoints = np.array(dataframe['keypoints'].tolist(), dtype=np.float32)
-        self.targets = np.array(dataframe['target'].tolist(), dtype=np.float32)
-        self.img_ids = dataframe['img_id'].values
+    def __init__(self, X, y):
+        self.X = torch.tensor(X, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.float32)
 
     def __len__(self):
-        return len(self.keypoints)
+        return len(self.X)
 
     def __getitem__(self, idx):
-        return self.img_ids[idx], self.keypoints[idx], self.targets[idx]
+        return self.X[idx], self.y[idx]
 
 
 # Define the Neural Network Model
 class MLP(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, layers, activation_fn):
         super(MLP, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_size)
-        )
+        self.layers = nn.Sequential()
+
+        # Créer les couches cachées dynamiquement
+        last_size = input_size
+        for i, layer_size in enumerate(layers):
+            self.layers.add_module(f"Linear_{i}", nn.Linear(last_size, layer_size))
+            self.layers.add_module(f"Activation_{i}", activation_fn())
+            last_size = layer_size
+
+        # Ajouter la dernière couche
+        self.layers.add_module("Output", nn.Linear(last_size, output_size))
 
     def forward(self, x):
         return self.layers(x)
 
 
-# Reading Train & Test CSV data
+# Reading Train CSV data
 df_train = pd.read_csv('train_data_original.csv')
 df_train['keypoints'] = df_train['keypoints'].apply(csv_string_to_list)
 df_train['target'] = df_train['target'].apply(csv_string_to_list)
 
+X_train = np.array(df_train['keypoints'].tolist(), dtype=np.float32)
+y_train = np.array(df_train['target'].tolist(), dtype=np.float32)
+
+# Reading Train CSV data
 df_test = pd.read_csv('test_data.csv')
 df_test['keypoints'] = df_test['keypoints'].apply(csv_string_to_list)
 df_test['target'] = df_test['target'].apply(csv_string_to_list)
 
-# DataLoaders (train & test)
-train_dataset = KeypointsDataset(df_train)
+X_test = np.array(df_test['keypoints'].tolist(), dtype=np.float32)
+y_test = np.array(df_test['target'].tolist(), dtype=np.float32)
 
 # DataLoaders (train & test)
-test_dataset = KeypointsDataset(df_test)
+train_dataset = KeypointsDataset(X_train, y_train)
+train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
 
-# DataLoaders
-batch_size = 10
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+# DataLoaders (train & test)
+test_dataset = KeypointsDataset(X_test, y_test)
+test_loader = DataLoader(test_dataset, batch_size=10, shuffle=True)
 
 # Initialize model parameters
-input_size = len(train_dataset[0][1])  # Features
+input_size = len(X_train[0])  # Features
 output_size = 2  # Target (left_ankle, right_ankle)
-model = MLP(input_size, output_size)
 loss_function = nn.MSELoss()
 epochs = 10
 
 # Hyperparameters testing
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
 batch_sizes = [16, 32, 64, 128]
+layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
+activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]
 
-# Best Hyperparameters init
-best_rmse = float('inf')
-best_lr = None
-best_batch_size = None
-
-# Grid search over learning rates and batch sizes
 for lr in learning_rates:
     for batch_size in batch_sizes:
-        print(f"Training with learning rate: {lr}, batch size: {batch_size}")
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        for layers in layer_configurations:
+            for activation_fn in activation_functions:
+                train_losses = []
+                eval_losses = []
 
-        # Training Loop
-        for epoch in range(epochs):
-            model.train()
-            for img_id, inputs, targets in train_loader:
-                # Randomly choose an occlusion method
-                occlusion_type = random.choice(["box", "keypoints"])
+                print(f"Training with LR: {lr}, Batch Size: {batch_size}, Layers: {layers}, Activation: {activation_fn.__name__}")
+                model = MLP(input_size, output_size, layers, activation_fn)
+                optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+                train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-                # Apply chosen occlusion
-                if occlusion_type == 'box':
-                    occluded_inputs = apply_box_occlusion(img_id, inputs)
-                else:  # keypoints
-                    occluded_inputs = apply_keypoints_occlusion(inputs, "upper_body")
+                # Training Loop
+                for epoch in range(epochs):
+                    model.train()
+                    total_loss = 0
+                    for inputs, targets in train_loader:
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        loss = loss_function(outputs, targets)
+                        loss.backward()
+                        optimizer.step()
+                        total_loss += loss.item()
+                    avg_train_loss = total_loss / len(train_loader)
+                    train_losses.append(avg_train_loss)
 
-                optimizer.zero_grad()
-                outputs = model(occluded_inputs)
-                loss = loss_function(outputs, targets)
-                loss.backward()
-                optimizer.step()
+                    # Evaluation Loop
+                    model.eval()
+                    total_loss = 0
+                    with torch.no_grad():
+                        for inputs, targets in test_loader:
+                            outputs = model(inputs)
+                            loss = loss_function(outputs, targets)
+                            total_loss += loss.item()
+                    avg_eval_loss = total_loss / len(test_loader)
+                    eval_losses.append(avg_eval_loss)
 
-        # Model Evaluation
-        model.eval()
-        y_pred = []
-        y_true = []
-        with torch.no_grad():
-            for inputs, targets in test_loader:
-                outputs = model(inputs)
-                y_pred.extend(outputs.tolist())
-                y_true.extend(targets.tolist())
+                # Model Evaluation for RMSE
+                model.eval()
+                y_pred = []
+                y_true = []
+                with torch.no_grad():
+                    for inputs, targets in test_loader:
+                        outputs = model(inputs)
+                        y_pred.extend(outputs.tolist())
+                        y_true.extend(targets.tolist())
+                mse = mean_squared_error(y_true, y_pred)
+                rmse = np.sqrt(mse)
+                record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn.__name__, epochs)
 
-        mse = mean_squared_error(y_true, y_pred)
-        rmse = np.sqrt(mse)
-        print(f"RMSE: {rmse}")
-
-        # Best hyperparameters update
-        if rmse < best_rmse:
-            best_rmse = rmse
-            best_lr = lr
-            best_batch_size = batch_size
-
-# Output the best hyperparameter set
-print(f"Best Hyperparameters => Learning rate: {best_lr}, Batch size: {best_batch_size}, RMSE: {best_rmse}")
-
-# TODO: plot loss curve
-# # Plot test
-# plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
-# plt.xlabel("Actual Values")
-# plt.ylabel("Predicted Values")
-# plt.title("Predicted vs. Actual Values")
-# plt.show()
+                # Plotting
+                # epochs_range = range(1, epochs + 1)
+                # plt.plot(epochs_range, train_losses, label='Training Loss')
+                # plt.plot(epochs_range, eval_losses, label='Evaluation Loss')
+                # plt.xlabel('Epochs')
+                # plt.ylabel('Loss')
+                # plt.title(f'Training and Evaluation Losses\nLR: {lr}, Batch: {batch_size}, Layers: {layers}, Activation: {activation_fn.__name__}')
+                # plt.legend()
+                # plt.show()
