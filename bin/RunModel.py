@@ -7,6 +7,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import mean_squared_error
 import ast
+import matplotlib.pyplot as plt
 
 def csv_string_to_list(string):
     try:
@@ -102,12 +103,15 @@ epochs = 10
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
 batch_sizes = [16, 32, 64, 128]
 layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
-activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]  # Exemples de fonctions d'activation
+activation_functions = [nn.ReLU, nn.Sigmoid, nn.Tanh]
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
         for layers in layer_configurations:
             for activation_fn in activation_functions:
+                train_losses = []
+                eval_losses = []
+
                 print(f"Training with LR: {lr}, Batch Size: {batch_size}, Layers: {layers}, Activation: {activation_fn.__name__}")
                 model = MLP(input_size, output_size, layers, activation_fn)
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -116,14 +120,29 @@ for lr in learning_rates:
                 # Training Loop
                 for epoch in range(epochs):
                     model.train()
+                    total_loss = 0
                     for inputs, targets in train_loader:
                         optimizer.zero_grad()
                         outputs = model(inputs)
                         loss = loss_function(outputs, targets)
                         loss.backward()
                         optimizer.step()
+                        total_loss += loss.item()
+                    avg_train_loss = total_loss / len(train_loader)
+                    train_losses.append(avg_train_loss)
 
-                # Model Evaluation
+                    # Evaluation Loop
+                    model.eval()
+                    total_loss = 0
+                    with torch.no_grad():
+                        for inputs, targets in test_loader:
+                            outputs = model(inputs)
+                            loss = loss_function(outputs, targets)
+                            total_loss += loss.item()
+                    avg_eval_loss = total_loss / len(test_loader)
+                    eval_losses.append(avg_eval_loss)
+
+                # Model Evaluation for RMSE
                 model.eval()
                 y_pred = []
                 y_true = []
@@ -132,7 +151,16 @@ for lr in learning_rates:
                         outputs = model(inputs)
                         y_pred.extend(outputs.tolist())
                         y_true.extend(targets.tolist())
-
                 mse = mean_squared_error(y_true, y_pred)
                 rmse = np.sqrt(mse)
                 record_hyperparameters_performance(lr, batch_size, rmse, layers, activation_fn.__name__, epochs)
+
+                # Plotting
+                # epochs_range = range(1, epochs + 1)
+                # plt.plot(epochs_range, train_losses, label='Training Loss')
+                # plt.plot(epochs_range, eval_losses, label='Evaluation Loss')
+                # plt.xlabel('Epochs')
+                # plt.ylabel('Loss')
+                # plt.title(f'Training and Evaluation Losses\nLR: {lr}, Batch: {batch_size}, Layers: {layers}, Activation: {activation_fn.__name__}')
+                # plt.legend()
+                # plt.show()
