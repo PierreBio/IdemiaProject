@@ -11,6 +11,8 @@ import random
 from src.ImageParser.ImagerProcessor import ImageProcessor
 from src.Common.utils import apply_keypoints_occlusion, record_results
 
+#Set the device to GPU if possible
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def csv_string_to_list(string):
     try:
@@ -66,6 +68,7 @@ class MLP(nn.Module):
 def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_epochs):
     best_rmse = float('inf')
 
+    p_model = p_model.to(device)
     for p_epoch in range(p_epochs):
         p_model.train()
         for img_id, inputs, targets, bboxes in p_train_loader:
@@ -78,6 +81,8 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
                 occluded_inputs = apply_keypoints_occlusion(inputs, "upper_body")
 
             p_optimizer.zero_grad()
+            occluded_inputs = occluded_inputs.to(device)
+            targets = targets.to(device)
             outputs = p_model(occluded_inputs)
             loss = loss_function(outputs, targets)
             loss.backward()
@@ -87,6 +92,7 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
     y_pred, y_true = [], []
     with torch.no_grad():
         for img_id, inputs, targets, bboxes in p_test_loader:
+            inputs = inputs.to(device)
             outputs = p_model(inputs)
             y_pred.extend(outputs.tolist())
             y_true.extend(targets.tolist())
