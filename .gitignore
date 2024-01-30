@@ -7,3 +7,4 @@ idemia_env/*
 *.egg-info/*
 *.pyc
 *.csv
+/models/*

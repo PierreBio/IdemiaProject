@@ -7,12 +7,18 @@ from sklearn.metrics import mean_squared_error
 import ast
 import matplotlib.pyplot as plt
 import random
+import os
 
 from src.ImageParser.ImagerProcessor import ImageProcessor
 from src.Common.utils import apply_keypoints_occlusion, record_results
 
-#Set the device to GPU if possible
+# Set the device to GPU if possible
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# Set the path to save the model and loss curve
+model_path = "models/"
+if not os.path.exists(model_path):
+    os.makedirs(model_path)
 
 def csv_string_to_list(string):
     try:
@@ -66,7 +72,7 @@ class MLP(nn.Module):
 
 
 def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_epochs):
-    best_rmse = float('inf')
+    loss_list = []
 
     p_model = p_model.to(device)
     for p_epoch in range(p_epochs):
@@ -87,6 +93,7 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
             loss = loss_function(outputs, targets)
             loss.backward()
             p_optimizer.step()
+        loss_list.append(loss.item())
 
     p_model.eval()
     y_pred, y_true = [], []
@@ -99,8 +106,15 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
             y_true.extend(targets.tolist())
 
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    return rmse
+    return rmse, loss_list
 
+def save_loss_graph(loss_list, lr, batch_size, layers):
+    plt.plot(loss_list)
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Loss Curve")
+    plt.savefig(model_path + f"loss_curve_{lr}_{batch_size}_{'-'.join(map(str, layers))}.png")
+    plt.clf()
 
 # Reading Train & Test CSV data
 df_train = pd.read_csv('train_data.csv')
@@ -128,10 +142,13 @@ output_size = 2  # Target (left_ankle, right_ankle)
 loss_function = nn.MSELoss()
 
 # Hyperparameters testing
-epochs = 10
+epochs = 50
 learning_rates = [0.1, 0.01, 0.001, 0.0001]
 batch_sizes = [16, 32, 64, 128]
 layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
+
+# RMSE
+best_rmse = float('inf')
 
 # Grid search over hyperparameters
 for lr in learning_rates:
@@ -146,7 +163,15 @@ for lr in learning_rates:
             optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
             # Train and evaluate the model
-            rmse = train_and_evaluate(model, train_loader, test_loader, optimizer, epochs)
+            rmse, loss_l = train_and_evaluate(model, train_loader, test_loader, optimizer, epochs)
+
+            # Save the graph for each configuration
+            save_loss_graph(loss_l, lr, batch_size, layers)
+
+            # Save the model with the best RMSE
+            if rmse < best_rmse:
+                torch.save(model.state_dict(), model_path + f"model_{lr}_{batch_size}_{'-'.join(map(str, layers))}.pt")
+                best_rmse = rmse
 
             # Record the results
             performance_data = {
