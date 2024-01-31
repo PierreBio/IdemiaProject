@@ -5,29 +5,39 @@ from src.Common.utils import *
 
 
 def main():
+    # CSV Setup
+    headers = ["img_id", "pedestrian_id", "bbox", "keypoints", "target"]
+
     # Training
     train_file = os.path.join("..",
                               "Coco",
                               "annotations_trainval2017",
-                              "person_keypoints_val2017.json")
+                              "person_keypoints_train2017.json")
     coco_parser = ImageProcessor(train_file)
-    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
-    data_with_occlusion_keypoints = coco_parser.generate_occluded_keypoints("upper_body", 0.8, 5, True)
-    data_with_occlusion = coco_parser.generate_occluded_box(data_with_occlusion_keypoints)
+    train_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
 
-    headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("train_data_original.csv", headers, original_data)
-    save_to_csv("train_data_with_occlusion.csv", headers, data_with_occlusion)
+    # Saving train data
+    save_to_csv("train_data.csv", headers, train_data)
 
-    train_file = os.path.join("..",
-                              "Coco",
-                              "annotations_trainval2017",
-                              "person_keypoints_val2017.json")
-    coco_parser = ImageProcessor(train_file)
-    original_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
+    # Validation
+    val_file = os.path.join("..",
+                            "Coco",
+                            "annotations_trainval2017",
+                            "person_keypoints_val2017.json")
+    coco_parser = ImageProcessor(val_file)
+    val_data = coco_parser.parse_annotation_file(cat_names=["Person"],
+                                                 threshold=70)
+    augmented_val_data_box = coco_parser.generate_occluded_box(occlusion_chance=0.8,
+                                                               range_occlusion=(0.5, 1),
+                                                               include_original_data=False)
+    augmented_val_data_kps = coco_parser.generate_occluded_keypoints(weight_position="",
+                                                                     weight_value=0.7,
+                                                                     min_visible_threshold=5,
+                                                                     include_original_data=False)
+    combined_val_data = augmented_val_data_box + augmented_val_data_kps
 
-    headers = ["img_id", "pedestrian_id", "keypoints", "target"]
-    save_to_csv("test_data.csv", headers, original_data)
+    # Saving Validation data
+    save_to_csv("validation_data.csv", headers, combined_val_data)
 
 
 def visualize():
