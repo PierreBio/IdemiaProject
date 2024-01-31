@@ -7,6 +7,7 @@ import skimage.io as io
 import numpy as np
 import torch
 
+
 # -----------------------------------------------------------------------------
 # ImageProcessor
 # -----------------------------------------------------------------------------
@@ -201,11 +202,12 @@ class ImageProcessor:
             Calling this method, does not affect the internal parsed data. The returned augmented
             data will be lost if not stored.
         """
+        augmented_data = []
+
         # Return var Init
         if include_original_data:
-            augmented_data = self.__parsed_data.copy()
-        else:
-            augmented_data = []
+            # Create deep copies to avoid modifying original data
+            augmented_data.extend([list(dp) for dp in self.__parsed_data])
 
         # Upper body contains 11 kps, lower body contains 4 kps (excluding ankles)
         upper_body_range = range(0, 33)
@@ -214,16 +216,14 @@ class ImageProcessor:
         for data_point in self.__parsed_data:
             img_id, ann_id, bbox, keypoints, target = data_point
 
-            # Count non-visible keypoints
+            # Initialize counts and copied keypoints for occlusion
             non_visible_count = keypoints.count(0) // 3
+            occluded_keypoints = keypoints.copy()
 
             # Skip this keypoints list if non-visible keypoints exceed the threshold
             if non_visible_count > min_visible_threshold:
                 print("skipping keypoint list")
                 continue
-
-            # Initializing occluded kps
-            occluded_keypoints = keypoints.copy()
 
             for i in range(len(occluded_keypoints) // 3):
                 if non_visible_count > min_visible_threshold:
@@ -241,7 +241,7 @@ class ImageProcessor:
                     occluded_keypoints[3*i:3*i+3] = [0, 0, 0]
                     non_visible_count += 1
 
-            augmented_data.append([img_id, ann_id, occluded_keypoints, target])
+            augmented_data.append([img_id, ann_id, bbox, occluded_keypoints, target])
 
         return augmented_data
 
@@ -269,11 +269,8 @@ class ImageProcessor:
         for data_point in self.__parsed_data:
             img_id, ann_id, bbox, keypoints, target = data_point
             
-            # Get all annotations for the id to get the box
-            img_ann = self.__coco_db.loadAnns(ann_id)
-            img_ann = img_ann[0]
-            box = img_ann["bbox"]
-            box_occluded = box.copy()
+            # Copying bbox for safe use
+            box_occluded = bbox.copy()
 
             # Apply occlusion randomly based on calculated chance
             random_value = random.uniform(range_occlusion[0], range_occlusion[1])
@@ -284,8 +281,8 @@ class ImageProcessor:
             normalized_kps = self.normalize_keypoints(keypoints, box_occluded)
             
             # Add the normalized keypoints to the augmented data
-            data_point[2] = normalized_kps
-            augmented_data.append(data_point)
+            new_data_point = [img_id, ann_id, bbox, normalized_kps, target]
+            augmented_data.append(new_data_point)
 
         return augmented_data
 
