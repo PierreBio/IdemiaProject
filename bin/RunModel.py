@@ -8,17 +8,17 @@ import ast
 import matplotlib.pyplot as plt
 import random
 import os
-
 from src.ImageParser.ImagerProcessor import ImageProcessor
 from src.Common.utils import apply_keypoints_occlusion, record_results
 
-# Set the device to GPU if possible
+# Sets the device to GPU if possible
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Set the path to save the model and loss curve
 model_path = "models/"
 if not os.path.exists(model_path):
     os.makedirs(model_path)
+
 
 def csv_string_to_list(string):
     try:
@@ -77,6 +77,7 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
     p_model = p_model.to(device)
     for p_epoch in range(p_epochs):
         p_model.train()
+        total_loss = 0
         for img_id, inputs, targets, bboxes in p_train_loader:
             occlusion_type = random.choice(["box", "keypoints"])
 
@@ -93,7 +94,11 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
             loss = loss_function(outputs, targets)
             loss.backward()
             p_optimizer.step()
-        loss_list.append(loss.item())
+            total_loss += loss.item()
+
+        avg_loss = total_loss / len(p_train_loader)
+        loss_list.append(avg_loss)
+        print(f"Epoch {p_epoch + 1}/{p_epochs} - Loss: {avg_loss:.4f}")
 
     p_model.eval()
     y_pred, y_true = [], []
@@ -106,7 +111,9 @@ def train_and_evaluate(p_model, p_train_loader, p_test_loader, p_optimizer, p_ep
             y_true.extend(targets.tolist())
 
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    print(f"Evaluation completed - RMSE: {rmse:.4f}")
     return rmse, loss_list
+
 
 def save_loss_graph(loss_list, lr, batch_size, layers):
     plt.plot(loss_list)
@@ -115,6 +122,7 @@ def save_loss_graph(loss_list, lr, batch_size, layers):
     plt.title("Loss Curve")
     plt.savefig(model_path + f"loss_curve_{lr}_{batch_size}_{'-'.join(map(str, layers))}.png")
     plt.clf()
+
 
 # Reading Train & Test CSV data
 df_train = pd.read_csv('train_data.csv')
@@ -142,10 +150,13 @@ output_size = 2  # Target (left_ankle, right_ankle)
 loss_function = nn.MSELoss()
 
 # Hyperparameters testing
-epochs = 50
-learning_rates = [0.1, 0.01, 0.001, 0.0001]
-batch_sizes = [16, 32, 64, 128]
-layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
+epochs = 20
+# learning_rates = [0.1, 0.01, 0.001, 0.0001]
+learning_rates = [0.01]
+# batch_sizes = [16, 32, 64, 128]
+batch_sizes = [16]
+# layer_configurations = [[64, 32], [128, 64, 32], [256, 128, 64, 32]]
+layer_configurations = [[256, 128, 64, 32]]
 
 # RMSE
 best_rmse = float('inf')
@@ -182,13 +193,3 @@ for lr in learning_rates:
                 "Epochs": epochs
             }
             record_results(performance_data)
-
-
-# TODO: plot loss curve
-# TODO: superpose train and eval curve (to check for overfitting)
-# # Plot test
-# plt.scatter(y_test, y_pred, color="blue", alpha=0.5, label='Predictions')
-# plt.xlabel("Actual Values")
-# plt.ylabel("Predicted Values")
-# plt.title("Predicted vs. Actual Values")
-# plt.show()

@@ -212,7 +212,7 @@ class ImageProcessor:
         lower_body_range = range(33, 45)
 
         for data_point in self.__parsed_data:
-            img_id, ann_id, keypoints, target = data_point
+            img_id, ann_id, bbox, keypoints, target = data_point
 
             # Count non-visible keypoints
             non_visible_count = keypoints.count(0) // 3
@@ -267,7 +267,7 @@ class ImageProcessor:
 
         # Get all image ids
         for data_point in self.__parsed_data:
-            img_id, ann_id, keypoints, target = self.__parsed_data
+            img_id, ann_id, bbox, keypoints, target = data_point
             
             # Get all annotations for the id to get the box
             img_ann = self.__coco_db.loadAnns(ann_id)
