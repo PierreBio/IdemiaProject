@@ -8,3 +8,5 @@ idemia_env/*
 *.pyc
 *.csv
 /models/*
+idemia_env/*
+*.csv
