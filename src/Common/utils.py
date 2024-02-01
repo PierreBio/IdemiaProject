@@ -35,38 +35,33 @@ def save_to_csv(file, headers, data_list):
 
 
 # -----------------------------------------------------------------------------
-# record_results
+# log_model_results
 # -----------------------------------------------------------------------------
-def record_results(performance_data, csv_file="./results/model_performance.csv"):
+def log_model_results(performance_data, csv_file="./results/model_performance.csv"):
     """
-    Records the performance of hyperparameters into a CSV file.
+    Records the performance data into a CSV file, using the experiment timestamp for consistency.
 
     Args:
-        performance_data (dict): A dictionary containing the performance data.
-        csv_file (str, optional): Path to the CSV file where performance data will be saved.
-                                  Defaults to "./results/model_performance.csv".
-
-    The function creates a new file or appends to an existing one, organizing the data by ascending RMSE values.
+        performance_data (dict): Performance data to log.
+        csv_file (str): Path to the CSV file for logging performance data.
     """
-
-    # Ensure the results directory exists
     results_dir = os.path.dirname(csv_file)
     os.makedirs(results_dir, exist_ok=True)
 
-    # Add the current date to the data
-    performance_data["Date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Dataframe Init
+    df_new_entry = pd.DataFrame([performance_data])
 
-    # Convert the data to a DataFrame
-    df = pd.DataFrame([performance_data])
+    # Write performance data to csv
+    try:
+        if os.path.isfile(csv_file):
+            df_existing = pd.read_csv(csv_file, sep=";")
+            df_final = pd.concat([df_existing, df_new_entry], ignore_index=True, sort=False)
+        else:
+            df_final = df_new_entry
 
-    # Append to existing file or write a new file
-    if os.path.isfile(csv_file):
-        existing_df = pd.read_csv(csv_file, sep=";")
-        df = pd.concat([existing_df, df])
-
-    # Sort by RMSE and save
-    df.sort_values(by="RMSE", inplace=True)
-    df.to_csv(csv_file, index=False, header=True, sep=";")
+        df_final.to_csv(csv_file, index=False, sep=";")
+    except Exception as e:
+        print(f"Error recording results: {e}")
 
 
 # -----------------------------------------------------------------------------
@@ -114,6 +109,9 @@ def visualize_csv_stats(file_path):
     return stats
 
 
+# -----------------------------------------------------------------------------
+# apply_keypoints_occlusion
+# -----------------------------------------------------------------------------
 def apply_keypoints_occlusion(inputs,
                               weight_position="",
                               weight_value=0.7,
