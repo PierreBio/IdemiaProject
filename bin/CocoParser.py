@@ -1,6 +1,6 @@
 import os
 
-from src.ImageParser.ImagerProcessor import ImageProcessor
+from src.ImageParser.ImageProcessor import ImageProcessor
 from src.Common.utils import *
 
 
@@ -17,7 +17,7 @@ def main():
     train_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
 
     # Saving train data
-    save_to_csv("train_data.csv", headers, train_data)
+    save_to_csv("../data/train_data.csv", headers, train_data)
 
     # Validation
     val_file = os.path.join("..",
@@ -37,17 +37,17 @@ def main():
     combined_val_data = augmented_val_data_box + augmented_val_data_kps
 
     # Saving Validation data
-    save_to_csv("validation_data.csv", headers, combined_val_data)
+    save_to_csv("../data/validation_data.csv", headers, combined_val_data)
 
 
-def visualize():
-    print("ORIGINAL DATA")
+def visualize(train_path, val_path):
+    print("TRAINING DATA")
     print("=============")
-    visualize_csv_stats("train_data_original.csv")
+    visualize_csv_stats(train_path)
 
-    print("\nOCCLUDED DATA")
+    print("\nVALIDATION DATA")
     print("=============")
-    visualize_csv_stats("train_data_with_occlusion.csv")
+    visualize_csv_stats(val_path)
 
 
 def startup_msg():
@@ -57,4 +57,5 @@ def startup_msg():
 if __name__ == "__main__":
     startup_msg()
     main()
-    visualize()
+    visualize("../data/train_data.csv",
+              "../data/validation_data.csv")
