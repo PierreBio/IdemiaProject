@@ -48,43 +48,41 @@ exp_batch_size = config['training']['batch_size']
 exp_name = f"{exp_timestamp}_LR{exp_learning_rate}_BS{exp_batch_size}"
 
 exp_path = os.path.join("../models/", exp_name)
-if not os.path.exists(exp_path):
-    os.makedirs(exp_path)
+os.makedirs(exp_path, exist_ok=True)
 
 # Data Preparation
 train_dataset = prepare_data(config['data']['train_path'])
-test_dataset = prepare_data(config['data']['validation_path'])
+val_dataset = prepare_data(config['data']['validation_path'])
 
 train_loader = DataLoader(train_dataset, batch_size=config['training']['batch_size'], shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=config['training']['batch_size'], shuffle=False)
+val_loader = DataLoader(val_dataset, batch_size=config['training']['batch_size'], shuffle=False)
 
 # Model Initialization
 input_size = len(train_dataset[0][1])  # Features
 model = MLP(input_size, config['model']['output_size'], config['model']['layers']).to(device)
 
-# Training
+# Training and retrieving best RMSE
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'])
 loss_function = torch.nn.MSELoss()
-train_model(model, train_loader, optimizer, loss_function, config['training']['epochs'], device, exp_path)
+best_rmse, best_epoch = train_model(model, train_loader, val_loader, optimizer, loss_function, config['training']['epochs'], device, exp_path)
 
-# Evaluation
-root_mse = evaluate_model(model, test_loader, device)
-print(f"Training completed. Final RMSE: {root_mse:.4f}")
-
-# Saving model & other useful graphs/data
+# Post-training actions
+# Saving Model
 print("Saving model & model performances...")
-model_filename = f"final_model_{root_mse:.4f}.pth"
+model_filename = f"final_model_{best_rmse:.4f}.pth"
 torch.save(model.state_dict(), os.path.join(exp_path, model_filename))
 print(f"Model {model_filename} saved.")
 
+# Saving Model performances
 print("Adding Model performances in log file...")
 performance_data = {
-    'Timestamp': exp_timestamp,
-    'Learning_Rate': exp_learning_rate,
-    'Batch_Size': exp_batch_size,
-    'Epochs': config['training']['epochs'],
-    'Model_Layers': config['model']['layers'],
-    'RMSE': root_mse
+    "Timestamp": exp_timestamp,
+    "Learning_Rate": exp_learning_rate,
+    "Batch_Size": exp_batch_size,
+    "Model_Layers": config['model']['layers'],
+    "Configured Epochs": config['training']['epochs'],
+    "Best Epoch": best_epoch,
+    "RMSE": best_rmse
 }
 log_model_results(performance_data, csv_file=os.path.join(models_path, "model_performance_logs.csv"))
 print("Model Performance saved.")
