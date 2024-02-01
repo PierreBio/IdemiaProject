@@ -7,7 +7,7 @@ from src.Models.Mlp import MLP
 from src.Training.Trainer import train_model
 from src.Training.Evaluator import evaluate_model
 import yaml
-
+import datetime
 
 # Load configuration
 def load_config(config_path):
@@ -30,6 +30,14 @@ model_path = "../models/"
 if not os.path.exists(model_path):
     os.makedirs(model_path)
 
+# Creating sub-folder for current run
+experiment_name = (f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                   f"_LR{config['training']['learning_rate']}"
+                   f"_BS{config['training']['batch_size']}")
+experiment_path = os.path.join("../models/", experiment_name)
+if not os.path.exists(experiment_path):
+    os.makedirs(experiment_path)
+
 # Data Preparation
 train_dataset = prepare_data(config['data']['train_path'])
 test_dataset = prepare_data(config['data']['validation_path'])
@@ -45,12 +53,13 @@ model = MLP(input_size, config['model']['output_size'], config['model']['layers'
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'])
 loss_function = torch.nn.MSELoss()
 
-train_model(model, train_loader, optimizer, loss_function, config['training']['epochs'], device, model_path)
+train_model(model, train_loader, optimizer, loss_function, config['training']['epochs'], device, experiment_path)
 
 # Evaluation
 root_mse = evaluate_model(model, test_loader, device)
 
-# Optionally save the model
-torch.save(model.state_dict(), os.path.join(model_path, "final_model.pth"))
+# Saving model & other useful graphs/data
+model_filename = f"final_model_{root_mse:.4f}.pth"
+torch.save(model.state_dict(), os.path.join(experiment_path, model_filename))
 
 print(f"Training completed. Final RMSE: {root_mse:.4f}")
