@@ -35,9 +35,9 @@ def prepare_data(data_path):
 # MODEL LOGIC
 # -----------------------------------------------------------------------------
 # Setup
-config = load_config('../config/config.yaml')
+config = load_config(os.path.join(os.getcwd(), "config", "config.yaml"))
 device = torch.device(config['device'] if torch.cuda.is_available() else "cpu")
-models_path = "../models/"
+models_path = os.path.join(os.getcwd(), "models")
 if not os.path.exists(models_path):
     os.makedirs(models_path)
 
@@ -47,7 +47,7 @@ exp_learning_rate = config['training']['learning_rate']
 exp_batch_size = config['training']['batch_size']
 exp_name = f"{exp_timestamp}_LR{exp_learning_rate}_BS{exp_batch_size}"
 
-exp_path = os.path.join("../models/", exp_name)
+exp_path = os.path.join("models", exp_name)
 os.makedirs(exp_path, exist_ok=True)
 
 # Data Preparation

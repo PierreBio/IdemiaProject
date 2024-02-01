@@ -9,7 +9,7 @@ def main():
     headers = ["img_id", "pedestrian_id", "bbox", "keypoints", "target"]
 
     # Training
-    train_file = os.path.join("..",
+    train_file = os.path.join(os.getcwd(),
                               "Coco",
                               "annotations_trainval2017",
                               "person_keypoints_train2017.json")
@@ -17,10 +17,11 @@ def main():
     train_data = coco_parser.parse_annotation_file(cat_names=["Person"], threshold=70)
 
     # Saving train data
-    save_to_csv("../data/train_data.csv", headers, train_data)
+
+    save_to_csv(os.path.join(os.getcwd(), "data", "train_data.csv"), headers, train_data)
 
     # Validation
-    val_file = os.path.join("..",
+    val_file = os.path.join(os.getcwd(),
                             "Coco",
                             "annotations_trainval2017",
                             "person_keypoints_val2017.json")
@@ -37,7 +38,7 @@ def main():
     combined_val_data = augmented_val_data_box + augmented_val_data_kps
 
     # Saving Validation data
-    save_to_csv("../data/validation_data.csv", headers, combined_val_data)
+    save_to_csv(os.path.join(os.getcwd(), "data", "validation_data.csv"), headers, combined_val_data)
 
 
 def visualize(train_path, val_path):
@@ -57,5 +58,5 @@ def startup_msg():
 if __name__ == "__main__":
     startup_msg()
     main()
-    visualize("../data/train_data.csv",
-              "../data/validation_data.csv")
+    visualize(os.path.join(os.getcwd(), "data", "train_data.csv"),
+              os.path.join(os.getcwd(), "data", "validation_data.csv"))
