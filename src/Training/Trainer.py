@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
-import os
 import torch
+import plotly.graph_objects as go
+import os
 
 from src.Training.Evaluator import evaluate_model
 
@@ -58,18 +58,35 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
         print(f"Epoch {epoch + 1}/{epochs} - Average Training Loss: {avg_loss:.4f}, Validation RMSE: {val_rmse:.4f}")
 
     # Save the training loss graph
-    save_loss_graph(loss_list, epochs, model_path)
-
+    save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path)
     return best_rmse, best_epoch
 
 
-def save_loss_graph(loss_list, epochs, model_path):
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, epochs+1), loss_list, marker='o', label='Training Loss')
-    plt.title('Training Loss Over Epochs')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(model_path, "training_loss_curve.png"))
-    plt.close()
+def save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path):
+    epochs = list(range(1, len(loss_list) + 1))
+
+    # Graph Theme
+    template_theme = "seaborn"
+
+    # Figure settings
+    trace_loss = go.Scatter(
+        x=epochs, y=loss_list,
+        mode='lines+markers',
+        name='Training Loss',
+        marker=dict(color='MediumPurple'),
+        line=dict(color='RebeccaPurple')
+    )
+
+    layout = go.Layout(
+        title='Training Performance',
+        xaxis=dict(title='Epoch'),
+        yaxis=dict(title='Value', autorange=True),
+        hovermode='closest',
+        template=template_theme,  # Apply the chosen theme
+        legend=dict(title='Metrics', x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.5)'),
+        margin=dict(l=40, r=40, t=40, b=40)
+    )
+    fig = go.Figure(data=[trace_loss], layout=layout)
+
+    # Saving to HTML
+    fig.write_html(os.path.join(model_path, "training_performance.html"))

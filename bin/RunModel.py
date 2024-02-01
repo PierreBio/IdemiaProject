@@ -69,7 +69,7 @@ best_rmse, best_epoch = train_model(model, train_loader, val_loader, optimizer, 
 # Post-training actions
 # Saving Model
 print("Saving model & model performances...")
-model_filename = f"final_model_{best_rmse:.4f}.pth"
+model_filename = f"final_model_epoch_{best_epoch}_rmse_{best_rmse:.4f}.pth"
 torch.save(model.state_dict(), os.path.join(exp_path, model_filename))
 print(f"Model {model_filename} saved.")
 
