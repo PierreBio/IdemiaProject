@@ -159,5 +159,3 @@ def apply_keypoints_occlusion(inputs,
         occluded_inputs.append(occluded_keypoints)
 
     return torch.stack(occluded_inputs)
-
-
