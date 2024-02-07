@@ -107,8 +107,3 @@ def visualize_csv_stats(file_path):
     # Print table & return results
     print(tabulate(stats.items(), headers=["Statistic", "Value"], floatfmt=".2f", stralign="left"))
     return stats
-
-
-
-
-
