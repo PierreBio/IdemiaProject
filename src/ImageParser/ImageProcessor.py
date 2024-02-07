@@ -60,7 +60,7 @@ class ImageProcessor:
             bbox: Bounding box with [x0, y0, width, height].
 
         Returns:
-            List of normalized keypoints.
+            List of normalized keypoints, and normalized bbox
         """
         x0, y0, width, height = bbox
         if width == 0 or height == 0:
@@ -220,7 +220,7 @@ class ImageProcessor:
             min_visible_threshold (int): Minimum number of visible keypoints in an image.
 
         Returns:
-            tuple: Tuple containing occluded and normalized keypoints, and normalized target.
+            tuple: Tuple containing occluded and normalized keypoints.
         """
         visible_count = sum(1 for i in range(2, len(keypoints), 3) if keypoints[i] > 0)
 
@@ -291,21 +291,22 @@ class ImageProcessor:
     # apply_keypoints_occlusion
     # -----------------------------------------------------------------------------
     @staticmethod
-    def apply_keypoints_occlusion_tensor(inputs,
-                                  weight_position="",
-                                  weight_value=0.7,
-                                  min_visible_threshold=5):
-        """
-        Applies occlusion to a batch of keypoints based on specified parameters.
+    def apply_keypoints_occlusion_tensor(inputs, weight_position="", weight_value=0.7, min_visible_threshold=5):
+        """Applies occlusion to keypoints tensors based on visibility and specified biasing towards body parts.
 
         Args:
-            inputs (Tensor): A batch of keypoints, where each keypoint has 3 values.
-            weight_position (str): "lower_body", "upper_body", or "" for random occlusion.
-            weight_value (float): Weight value to determine occlusion probability.
-            min_visible_threshold (int): Minimum number of visible keypoints in an image.
+            inputs (Tensor): A tensor of shape (N, M, 3) where N is the batch size, M is the number of keypoints
+                             per sample, and each keypoint is represented by 3 values (x, y, visibility).
+            weight_position (str): A string to bias the occlusion towards "lower_body" or "upper_body". An empty
+                                   string indicates no bias, leading to completely random occlusion.
+            weight_value (float): The probability of occluding keypoints. For biased occlusion, this applies to
+                                  the specified body part, with the complementary probability applying to the rest.
+            min_visible_threshold (int): The minimum number of keypoints that must remain visible after occlusion.
+                                         If a sample already has non-visible keypoints below this threshold, it is
+                                         skipped to avoid excessive occlusion.
 
         Returns:
-            Tensor: Batch of keypoints with occlusion applied.
+            Tensor: A tensor of the same shape as 'inputs' with occluded keypoints based on the specified parameters.
         """
         occluded_inputs = inputs.clone()
 
@@ -340,6 +341,26 @@ class ImageProcessor:
 
     @staticmethod
     def apply_box_occlusion_tensor(inputs, boxes, targets, occlusion_chance=0.8, box_scale_factor=(0.5, 1)):
+        """Applies box occlusion to a batch of keypoints and targets by scaling the bounding boxes.
+
+         Args:
+             inputs (Tensor): A tensor of keypoints for each data point in the batch, with shape (N, M, 3),
+                              where N is the batch size, M is the number of keypoints, and each keypoint is
+                              represented by 3 values (x, y, visibility).
+             boxes (Tensor): A tensor of bounding boxes for each data point in the batch, with shape (N, 4),
+                             where each box is represented by 4 values (x_min, y_min, width, height).
+             targets (Tensor): A tensor of target keypoints for each data point in the batch, with shape (N, 2),
+                               where each target is represented by 2 values (x, y).
+             occlusion_chance (float): The probability of applying box occlusion to a given sample.
+             box_scale_factor (tuple): A range (min, max) for the scaling factor to be applied to the height of
+                                       the bounding box, simulating occlusion.
+
+         Returns:
+             tuple: A tuple containing three tensors:
+                    - The tensor of occluded bounding boxes (N, 4).
+                    - The tensor of occluded and re-normalized keypoints (N, M, 3).
+                    - The tensor of re-normalized target keypoints (N, 2).
+         """
         occluded_inputs = []
         occluded_targets = []
         occluded_boxes = []
