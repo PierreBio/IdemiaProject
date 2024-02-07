@@ -1,11 +1,13 @@
 import torch
 import plotly.graph_objects as go
 import os
+import random
 
 from src.Training.Evaluator import evaluate_model
+from src.ImageParser.ImageProcessor import ImageProcessor
 
 
-def train_model(model, train_loader, val_loader, optimizer, loss_function: torch.nn, epochs, device, model_path):
+def train_model(model, train_loader, val_loader, optimizer, loss_function: torch.nn, epochs, device, model_path, occlusion_params):
     """
     Train the model, evaluate it on the validation set after each epoch,
     and keep track of the best Root MSE.
@@ -27,12 +29,21 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
     best_rmse = float('inf')
     best_epoch = -1
     loss_list = []
-
     for epoch in range(epochs):
         total_loss = 0
 
-        for _, inputs, targets, _ in train_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
+        for _, bbox, inputs, targets in train_loader:
+            inputs, targets, bbox = inputs.to(device), targets.to(device), bbox.to(device)
+
+            # Apply dynamic occlusion based on a random choice
+            occlusion_type = random.choice(['no_occlusion', 'box_occlusion', 'keypoints_occlusion'])
+            if occlusion_type == 'box_occlusion':
+                bbox, inputs, targets = ImageProcessor.apply_box_occlusion_tensor(inputs, bbox, targets, **occlusion_params.get('box_occlusion', {}))
+            elif occlusion_type == 'keypoints_occlusion':
+                inputs = ImageProcessor.apply_keypoints_occlusion_tensor(inputs, **occlusion_params.get('keypoints_occlusion', {}))
+            elif occlusion_type == 'no_occlusion':
+                # do nothing
+                pass
 
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -48,6 +59,7 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
 
         # Evaluate on validation set
         val_rmse = evaluate_model(model, val_loader, device)
+
         # TODO: add early stopping condition?
         if val_rmse < best_rmse:
             best_rmse = val_rmse

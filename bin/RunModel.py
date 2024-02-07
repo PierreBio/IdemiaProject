@@ -26,6 +26,7 @@ def load_config(config_path):
 # -----------------------------------------------------------------------------
 def prepare_data(data_path):
     df = pd.read_csv(data_path)
+    df['bbox'] = df['bbox'].apply(csv_string_to_list)
     df['keypoints'] = df['keypoints'].apply(csv_string_to_list)
     df['target'] = df['target'].apply(csv_string_to_list)
     return KeypointsDataset(df)
@@ -50,6 +51,12 @@ exp_name = f"{exp_timestamp}_LR{exp_learning_rate}_BS{exp_batch_size}"
 exp_path = os.path.join("models", exp_name)
 os.makedirs(exp_path, exist_ok=True)
 
+# Train occlusion settings
+occlusion_params = {
+    'box_occlusion': {'occlusion_chance': 0.8, 'box_scale_factor': (0.5, 1)},
+    'keypoints_occlusion': {'weight_position': "upper_body", 'weight_value': 0.7, 'min_visible_threshold': 5}
+}
+
 # Data Preparation
 train_dataset = prepare_data(config['data']['train_path'])
 val_dataset = prepare_data(config['data']['validation_path'])
@@ -58,15 +65,17 @@ train_loader = DataLoader(train_dataset, batch_size=config['training']['batch_si
 val_loader = DataLoader(val_dataset, batch_size=config['training']['batch_size'], shuffle=False)
 
 # Model Initialization
-input_size = len(train_dataset[0][1])  # Features
+input_size = len(train_dataset[0][2])  # Features
 model = MLP(input_size, config['model']['output_size'], config['model']['layers']).to(device)
 
 # Training and retrieving best RMSE
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'])
 loss_function = torch.nn.MSELoss()
-best_rmse, best_epoch = train_model(model, train_loader, val_loader, optimizer, loss_function, config['training']['epochs'], device, exp_path)
+best_rmse, best_epoch = train_model(model, train_loader, val_loader, optimizer, loss_function, config['training']['epochs'], device, exp_path, occlusion_params)
 
-# Post-training actions
+# -----------------------------------------------------------------------------
+# POST-TRAINING ACTIONS
+# -----------------------------------------------------------------------------
 # Saving Model
 print("Saving model & model performances...")
 model_filename = f"final_model_epoch_{best_epoch}_rmse_{best_rmse:.4f}.pth"
