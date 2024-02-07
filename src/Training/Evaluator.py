@@ -8,7 +8,7 @@ def evaluate_model(model, dataloader, device):
     y_pred, y_true = [], []
 
     with torch.no_grad():
-        for _, inputs, targets, _ in dataloader:
+        for _, _, inputs, targets in dataloader:
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
 

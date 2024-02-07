@@ -75,7 +75,10 @@ class ImageProcessor:
                 norm_keypoints.extend([x_norm, y_norm, v])
             else:
                 norm_keypoints.extend([x, y, v])
-        return norm_keypoints
+
+        # Setting up new x0 & y0 for the box with normalized data
+        bbox = [0, 0, width, height]
+        return norm_keypoints, bbox
 
     @staticmethod
     def apply_dynamic_occlusion_to_csv(parsed_data, **kwargs):
@@ -85,8 +88,8 @@ class ImageProcessor:
             occlusion_type = random.choice(['no_occlusion', 'box', 'keypoints'])
 
             if occlusion_type == 'box':
-                occlusion_chance = kwargs.get('bb_occlusion_chance', 0.7)
-                box_scale_factor = kwargs.get('bb_scale_factor', (0.5, 1))
+                occlusion_chance = kwargs.get('box_occlusion_chance', 0.7)
+                box_scale_factor = kwargs.get('box_scale_factor', (0.5, 1))
                 occluded_bbox, occluded_keypoints, occluded_target = ImageProcessor.apply_box_occlusion(keypoints,
                                                                                                         bbox,
                                                                                                         target,
@@ -132,7 +135,7 @@ class ImageProcessor:
             for img_ann in img_anns:
                 # Normalize keypoints
                 try:
-                    normalized_kps = self.normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
+                    normalized_kps, normalized_box = self.normalize_keypoints(img_ann["keypoints"], img_ann["bbox"])
 
                     # Checking feets visibility (for scientific purpose only)
                     # Feets are last 2 sets of kps
@@ -147,7 +150,7 @@ class ImageProcessor:
 
                             # Adding accepted data to parsed_data
                             parsed_data.append(
-                                [img_id, img_ann["id"], img_ann["bbox"], normalized_kps[:-6], target])
+                                [img_id, img_ann["id"], normalized_box, normalized_kps[:-6], target])
                         else:
                             logging.debug(
                                 f"[ImageParse]: REJECTED, Not enough kps visible for image {img_id}")
@@ -254,7 +257,7 @@ class ImageProcessor:
         return occluded_keypoints
 
     @staticmethod
-    def apply_box_occlusion(keypoints, bbox, target, occlusion_chance=0.8, range_occlusion=(0.5, 1)):
+    def apply_box_occlusion(keypoints, bbox, target, occlusion_chance=0.8, box_scale_factor=(0.5, 1)):
         """
         Applies occlusion to keypoints and the target by modifying the bounding box.
 
@@ -263,7 +266,7 @@ class ImageProcessor:
             bbox (list): Bounding box for an image [x, y, width, height].
             target (list): Target keypoint to be normalized alongside the keypoints.
             occlusion_chance (float): Probability of applying occlusion to the bounding box.
-            range_occlusion (tuple): Range (min, max) for the scaling factor of occlusion.
+            box_scale_factor (tuple): Range (min, max) for the scaling factor of occlusion.
 
         Returns:
             tuple: Tuple containing occluded and normalized keypoints, occluded bounding box, and normalized target.
@@ -271,108 +274,105 @@ class ImageProcessor:
         occluded_box = list(bbox)  # Make a copy of the bbox to avoid modifying the original
         if random.random() < occlusion_chance:
             # Randomly scale the height of the box for occlusion
-            scale_factor = random.uniform(*range_occlusion)
+            scale_factor = random.uniform(*box_scale_factor)
             occluded_box[3] *= scale_factor  # Apply occlusion by modifying the height
 
         # Normalize keypoints and target with the occluded box
-        normalized_keypoints = ImageProcessor.normalize_keypoints(keypoints, occluded_box)
+        normalized_keypoints, _ = ImageProcessor.normalize_keypoints(keypoints, occluded_box)
 
         # TODO: Adding visibility data to the target to be able to normalize it
         #       and then removing it (this is a temp solution)
         new_target = target + [2]
-        normalized_target = ImageProcessor.normalize_keypoints(new_target, occluded_box)
+        normalized_target, _ = ImageProcessor.normalize_keypoints(new_target, occluded_box)
 
         return occluded_box, normalized_keypoints, normalized_target[:-1]
 
-    # # -----------------------------------------------------------------------------
-    # # apply_keypoints_occlusion
-    # # -----------------------------------------------------------------------------
-    # @staticmethod
-    # def apply_keypoints_occlusion(inputs,
-    #                               weight_position="",
-    #                               weight_value=0.7,
-    #                               min_visible_threshold=5):
-    #     """
-    #     Applies occlusion to a batch of keypoints based on specified parameters.
-    #
-    #     Args:
-    #         inputs (Tensor): A batch of keypoints, where each keypoint has 3 values.
-    #         weight_position (str): "lower_body", "upper_body", or "" for random occlusion.
-    #         weight_value (float): Weight value to determine occlusion probability.
-    #         min_visible_threshold (int): Minimum number of visible keypoints in an image.
-    #
-    #     Returns:
-    #         Tensor: Batch of keypoints with occlusion applied.
-    #     """
-    #     occluded_inputs = inputs.clone()
-    #
-    #     # Define ranges for upper and lower body keypoints
-    #     upper_body_range = range(0, 11)
-    #     lower_body_range = range(11, 15)
-    #
-    #     for idx, keypoints in enumerate(occluded_inputs):
-    #         keypoints_reshaped = keypoints.view(-1, 3)  # Reshape to have 3 elements per row
-    #         non_visible_count = torch.sum(torch.all(keypoints_reshaped == 0, dim=1)).item()
-    #
-    #         # Skip this keypoints if non-visible keypoints exceed the threshold
-    #         if non_visible_count > min_visible_threshold:
-    #             occluded_inputs.append(keypoints)
-    #             continue
-    #
-    #         for i in range(keypoints_reshaped.size(0)):
-    #             if non_visible_count > min_visible_threshold:
-    #                 break  # Stop if we reach the visibility threshold
-    #
-    #             if (weight_position == "lower_body" and i in lower_body_range or
-    #                     weight_position == "upper_body" and i in upper_body_range):
-    #                 occlusion_chance = weight_value
-    #             else:
-    #                 occlusion_chance = 1 - weight_value
-    #
-    #             if random.random() < occlusion_chance:
-    #                 occluded_inputs[idx, 3 * i:3 * i + 3] = torch.tensor([0, 0, 0], dtype=torch.float32)
-    #                 non_visible_count += 1
-    #
-    #     return occluded_inputs
-    #
-    # @staticmethod
-    # def apply_box_occlusion(inputs, boxes, targets, occlusion_chance=0.8, range_occlusion=(0.5, 1)):
-    #     """
-    #     Applies occlusion to keypoints based on the corresponding image annotations.
-    #
-    #     Args:
-    #         inputs (list): List of keypoints for each data point in the batch.
-    #         boxes (list): List of bounding boxes for each data point in the batch.
-    #         targets (list): List of target values for each data point in the batch that may need adjustment.
-    #         occlusion_chance (float): Probability of applying occlusion to a given set of keypoints.
-    #         range_occlusion (tuple): Range (min, max) for the scaling factor of occlusion.
-    #
-    #     Returns:
-    #         tuple: A tuple containing occluded inputs, and optionally occluded targets if targets are not None.
-    #                Format: (occluded_inputs, occluded_targets) or occluded_inputs if targets is None.
-    #
-    #     Note:
-    #         This function assumes access to a COCO-style database (`self.__coco_db`) to fetch annotations
-    #         based on image IDs, and a method `self.normalize_keypoints` for normalizing keypoints.
-    #     """
-    #     occluded_inputs = []
-    #     occluded_targets = []
-    #
-    #     for keypoints, box, target in zip(inputs, boxes, targets):
-    #         # Cloning box to avoid mutation
-    #         box_occluded = list(box)
-    #
-    #         if random.random() < occlusion_chance:
-    #             # Randomly scale a dimension of the box for occlusion
-    #             scale_factor = random.uniform(*range_occlusion)
-    #             box_occluded[3] *= scale_factor
-    #
-    #         # Normalize keypoints with the occluded box
-    #         normalized_kps = ImageProcessor.normalize_keypoints(keypoints, box_occluded)
-    #         occluded_inputs.append(normalized_kps)
-    #
-    #         # Normalize target with the occluded box
-    #         normalized_target = ImageProcessor.normalize_keypoints(target, box_occluded)
-    #         occluded_targets.append(normalized_target)
-    #
-    #     return occluded_inputs, occluded_targets
+    # -----------------------------------------------------------------------------
+    # apply_keypoints_occlusion
+    # -----------------------------------------------------------------------------
+    @staticmethod
+    def apply_keypoints_occlusion_tensor(inputs,
+                                  weight_position="",
+                                  weight_value=0.7,
+                                  min_visible_threshold=5):
+        """
+        Applies occlusion to a batch of keypoints based on specified parameters.
+
+        Args:
+            inputs (Tensor): A batch of keypoints, where each keypoint has 3 values.
+            weight_position (str): "lower_body", "upper_body", or "" for random occlusion.
+            weight_value (float): Weight value to determine occlusion probability.
+            min_visible_threshold (int): Minimum number of visible keypoints in an image.
+
+        Returns:
+            Tensor: Batch of keypoints with occlusion applied.
+        """
+        occluded_inputs = inputs.clone()
+
+        # Define ranges for upper and lower body keypoints
+        upper_body_range = range(0, 11)
+        lower_body_range = range(11, 15)
+
+        for idx, keypoints in enumerate(occluded_inputs):
+            keypoints_reshaped = keypoints.view(-1, 3)  # Reshape to have 3 elements per row
+            non_visible_count = torch.sum(torch.all(keypoints_reshaped == 0, dim=1)).item()
+
+            # Skip this keypoints if non-visible keypoints exceed the threshold
+            if non_visible_count > min_visible_threshold:
+                occluded_inputs.append(keypoints)
+                continue
+
+            for i in range(keypoints_reshaped.size(0)):
+                if non_visible_count > min_visible_threshold:
+                    break  # Stop if we reach the visibility threshold
+
+                if (weight_position == "lower_body" and i in lower_body_range or
+                        weight_position == "upper_body" and i in upper_body_range):
+                    occlusion_chance = weight_value
+                else:
+                    occlusion_chance = 1 - weight_value
+
+                if random.random() < occlusion_chance:
+                    occluded_inputs[idx, 3 * i:3 * i + 3] = torch.tensor([0, 0, 0], dtype=torch.float32)
+                    non_visible_count += 1
+
+        return occluded_inputs
+
+    @staticmethod
+    def apply_box_occlusion_tensor(inputs, boxes, targets, occlusion_chance=0.8, box_scale_factor=(0.5, 1)):
+        occluded_inputs = []
+        occluded_targets = []
+        occluded_boxes = []
+
+        for keypoints, box, target in zip(inputs, boxes, targets):
+            # Cloning box to avoid mutation
+            box_occluded = box.clone()
+
+            if random.random() < occlusion_chance:
+                # Randomly scale the height of the box for occlusion
+                scale_factor = random.uniform(*box_scale_factor)
+                box_occluded[3] = box_occluded[3] * scale_factor
+
+            # Normalize keypoints with the occluded box
+            normalized_kps, _ = ImageProcessor.normalize_keypoints(keypoints.tolist(), box_occluded.tolist())
+
+            # Temporarily add a visibility value to target for normalization
+            target_with_visibility = torch.cat((target, torch.tensor([2.0], dtype=torch.float32)))
+
+            # Normalize target with the occluded box
+            normalized_target_list, _ = ImageProcessor.normalize_keypoints(target_with_visibility.tolist(),
+                                                                           box_occluded.tolist())
+
+            # Convert back to tensor and remove the temporary visibility value
+            normalized_target = torch.tensor(normalized_target_list[:-1], dtype=torch.float32)
+
+            occluded_inputs.append(torch.tensor(normalized_kps))
+            occluded_targets.append(normalized_target)
+            occluded_boxes.append(box_occluded)
+
+        # Convert lists to tensors for consistency with PyTorch operations
+        occluded_inputs_tensor = torch.stack(occluded_inputs)
+        occluded_targets_tensor = torch.stack(occluded_targets)
+        occluded_boxes_tensor = torch.stack(occluded_boxes)
+
+        return occluded_boxes_tensor, occluded_inputs_tensor, occluded_targets_tensor

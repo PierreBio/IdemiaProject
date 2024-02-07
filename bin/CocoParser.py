@@ -17,7 +17,7 @@ def main():
     train_data = coco_parser.parse_annotation_file(train_file, cat_names=["Person"], threshold=70)
 
     # Saving train data
-    save_to_csv(os.path.join(os.getcwd(), "data", "train_data.csv"), headers, train_data)
+    save_to_csv(os.path.join(os.getcwd(), "data", "coco_train_data.csv"), headers, train_data)
 
     # Validation
     val_file = os.path.join(os.getcwd(),
@@ -30,8 +30,8 @@ def main():
     occluded_data = coco_parser.apply_dynamic_occlusion_to_csv(val_data)
 
     # Saving validation data with & without occlusion
-    save_to_csv(os.path.join(os.getcwd(), "data", "validation_data.csv"), headers, val_data)
-    save_to_csv(os.path.join(os.getcwd(), "data", "validation_data_with_occlusion.csv"), headers, occluded_data)
+    save_to_csv(os.path.join(os.getcwd(), "data", "coco_validation_data.csv"), headers, val_data)
+    save_to_csv(os.path.join(os.getcwd(), "data", "coco_validation_data_with_occlusion.csv"), headers, occluded_data)
 
 
 def visualize(train_path, val_path, occl_path):

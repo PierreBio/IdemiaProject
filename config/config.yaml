@@ -2,10 +2,10 @@ model:
   output_size: 2
   layers: [256, 128, 64, 32]
 training:
-  epochs: 3
+  epochs: 20
   batch_size: 16
-  learning_rate: 0.01
+  learning_rate: 0.0001
 data:
-  train_path: ../data/train_data.csv
-  validation_path: ../data/validation_data.csv
+  train_path: data/coco_train_data.csv
+  validation_path: data/coco_validation_data_with_occlusion.csv
 device: cuda
