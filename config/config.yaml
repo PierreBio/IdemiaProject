@@ -2,7 +2,7 @@ model:
   output_size: 2
   layers: [256, 128, 64, 32]
 training:
-  epochs: 20
+  epochs: 50
   batch_size: 16
   learning_rate: 0.0001
 data:

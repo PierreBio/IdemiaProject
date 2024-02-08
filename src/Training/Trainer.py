@@ -1,4 +1,5 @@
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import plotly.graph_objects as go
 import os
 import random
@@ -29,6 +30,10 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
     best_rmse = float('inf')
     best_epoch = -1
     loss_list = []
+
+    # Initializing learning rate scheduler
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.05, patience=5, verbose=True)
+
     for epoch in range(epochs):
         total_loss = 0
 
@@ -38,9 +43,15 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
             # Apply dynamic occlusion based on a random choice
             occlusion_type = random.choice(['no_occlusion', 'box_occlusion', 'keypoints_occlusion'])
             if occlusion_type == 'box_occlusion':
-                bbox, inputs, targets = ImageProcessor.apply_box_occlusion_tensor(inputs, bbox, targets, **occlusion_params.get('box_occlusion', {}))
+                bbox, inputs, targets = ImageProcessor.apply_box_occlusion_tensor(inputs,
+                                                                                  bbox,
+                                                                                  targets,
+                                                                                  **occlusion_params.get("box_occlusion",
+                                                                                                         {}))
             elif occlusion_type == 'keypoints_occlusion':
-                inputs = ImageProcessor.apply_keypoints_occlusion_tensor(inputs, **occlusion_params.get('keypoints_occlusion', {}))
+                inputs = ImageProcessor.apply_keypoints_occlusion_tensor(inputs,
+                                                                         **occlusion_params.get("keypoints_occlusion",
+                                                                                                {}))
             elif occlusion_type == 'no_occlusion':
                 # do nothing
                 pass
@@ -59,6 +70,9 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
 
         # Evaluate on validation set
         val_rmse = evaluate_model(model, val_loader, device)
+
+        # Update the learning rate based on validation RMSE
+        scheduler.step(val_rmse)
 
         # TODO: add early stopping condition?
         if val_rmse < best_rmse:
