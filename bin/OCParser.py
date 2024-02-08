@@ -12,36 +12,21 @@ def main():
     train_file = os.path.join(os.getcwd(),
                               "OCHuman",
                               "ochuman_coco_format_val_range_0.00_1.00.json")
-    coco_parser = ImageProcessor(train_file)
-    train_data = coco_parser.parse_annotation_file(
-        cat_names=["Person"], threshold=70)
+    coco_parser = ImageProcessor()
+    train_data = coco_parser.parse_annotation_file(train_file, cat_names=["Person"], threshold=70)
 
     # Saving train data
-
     save_to_csv(os.path.join(os.getcwd(), "data",
-                "train_data_OCH.csv"), headers, train_data)
+                "och_train_data.csv"), headers, train_data)
 
     # Validation, test ?
-    val_file = os.path.join(os.getcwd(),
-                            "OCHuman",
-                            "ochuman_coco_format_test_range_0.00_1.00.json")
-    coco_parser = ImageProcessor(val_file)
-    val_data = coco_parser.parse_annotation_file(cat_names=["Person"],
-                                                 threshold=70)
-
-    # augmented_val_data_box = coco_parser.generate_occluded_box(occlusion_chance=0.8,
-    #                                                            range_occlusion=(
-    #                                                                0.5, 1),
-    #                                                            include_original_data=False)
-    # augmented_val_data_kps = coco_parser.generate_occluded_keypoints(weight_position="",
-    #                                                                  weight_value=0.7,
-    #                                                                  min_visible_threshold=5,
-    #                                                                  include_original_data=False)
-    # combined_val_data = augmented_val_data_box + augmented_val_data_kps
+    val_file = os.path.join(os.getcwd(), "OCHuman", "ochuman_coco_format_test_range_0.00_1.00.json")
+    coco_parser = ImageProcessor()
+    val_data = coco_parser.parse_annotation_file(val_file, cat_names=["Person"],threshold=70)
 
     # Saving Validation data
     save_to_csv(os.path.join(os.getcwd(), "data",
-                "validation_data_OCH.csv"), headers, val_data)
+                "och_validation_data.csv"), headers, val_data)
 
 
 def visualize(train_path, val_path):
