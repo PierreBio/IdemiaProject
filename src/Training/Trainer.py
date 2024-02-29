@@ -30,6 +30,7 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
     best_rmse = float('inf')
     best_epoch = -1
     loss_list = []
+    val_loss_list = []
 
     # Initializing learning rate scheduler
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.05, patience=5, verbose=True)
@@ -69,12 +70,14 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
         loss_list.append(avg_loss)
 
         # Evaluate on validation set
-        val_rmse = evaluate_model(model, val_loader, device)
+        val_rmse, eval_loss = evaluate_model(model, val_loader, device, loss_function)
+        avg_val_loss = sum(eval_loss) / len(eval_loss)
+        val_loss_list.append(avg_val_loss)
 
         # Update the learning rate based on validation RMSE
         scheduler.step(val_rmse)
 
-        # TODO: add early stopping condition?
+        # TODO: add early stopping condition
         if val_rmse < best_rmse:
             best_rmse = val_rmse
             best_epoch = epoch + 1
@@ -84,11 +87,12 @@ def train_model(model, train_loader, val_loader, optimizer, loss_function: torch
         print(f"Epoch {epoch + 1}/{epochs} - Average Training Loss: {avg_loss:.4f}, Validation RMSE: {val_rmse:.4f}")
 
     # Save the training loss graph
-    save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path)
+    save_loss_graph_go(loss_list, model_path, "training")
+    save_loss_graph_go(loss_list, model_path, "validation")
     return best_rmse, best_epoch
 
 
-def save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path):
+def save_loss_graph_go(loss_list, model_path, name):
     epochs = list(range(1, len(loss_list) + 1))
 
     # Graph Theme
@@ -98,13 +102,13 @@ def save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path):
     trace_loss = go.Scatter(
         x=epochs, y=loss_list,
         mode='lines+markers',
-        name='Training Loss',
+        name=f'{name} Loss',
         marker=dict(color='MediumPurple'),
         line=dict(color='RebeccaPurple')
     )
 
     layout = go.Layout(
-        title='Training Performance',
+        title=f'{name} Performance',
         xaxis=dict(title='Epoch'),
         yaxis=dict(title='Value', autorange=True),
         hovermode='closest',
@@ -115,4 +119,4 @@ def save_loss_graph_go(loss_list, best_rmse, best_epoch, model_path):
     fig = go.Figure(data=[trace_loss], layout=layout)
 
     # Saving to HTML
-    fig.write_html(os.path.join(model_path, "training_performance.html"))
+    fig.write_html(os.path.join(model_path, f"{name}_performance.html"))
