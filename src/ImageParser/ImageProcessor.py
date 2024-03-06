@@ -320,7 +320,6 @@ class ImageProcessor:
 
             # Skip this keypoints if non-visible keypoints exceed the threshold
             if non_visible_count > min_visible_threshold:
-                occluded_inputs.append(keypoints)
                 continue
 
             for i in range(keypoints_reshaped.size(0)):
