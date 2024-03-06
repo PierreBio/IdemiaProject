@@ -5,3 +5,5 @@ idemia_env/*
 *.egg-info/*
 *.pyc
 /models/*
+/Coco/
+/OCHumans/
