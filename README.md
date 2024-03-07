@@ -1,4 +1,5 @@
 # IdemiaProject
+![logo_projet](https://github.com/PierreBio/IdemiaProject/assets/45881846/0b11c484-01b3-4607-8882-8bb99fad47c0)
 
 This project is carried out in the context of the Artificial Intelligence Masters of **TelecomParis**.
 
