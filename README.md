@@ -55,6 +55,12 @@ py -m bin.DataParser
 py -m bin.RunModel
 ```
 
+- You can launch DataCropper script to create cropped images:
+
+```
+py -m bin.DataParser
+```
+
 ## How to use your GPU
 Download CUDA toolkit : https://developer.nvidia.com/cuda-downloads
 You can check your version and if the installation was successfull with:
@@ -74,14 +80,21 @@ print(torch.cuda.is_available())
 ```
 
 ## How to download COCO Dataset?
+
 Go to https://cocodataset.org/#download
+
 Download 2017 Train/Val annotations
 
 ## How to download OCHuman database
+
 Go to https://github.com/liruilong940607/OCHumanApi?tab=readme-ov-file
+
 Download link is at the bottom of page
+
 Fill in your information and click on Send, you will have access to Google Drive
+
 Download files and save to a OCHuman folder
+
 Use bin/OCParser.py to create the csv files
 
 ## Ressources

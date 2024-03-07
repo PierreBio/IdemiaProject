@@ -4,7 +4,7 @@ import os
 
 from src.ImageParser.ImageProcessor import *
 
-def process_csv_data(annotation_file, csv_path, output_folder):
+def process_crop_csv_data(annotation_file, csv_path, output_folder):
     coco = COCO(annotation_file)
     coco_cropper = ImageProcessor()
 
@@ -23,7 +23,6 @@ def process_csv_data(annotation_file, csv_path, output_folder):
                 cropped_filename = f"{img_id}_{pedestrian_id}.jpg"
                 coco_cropper.crop_and_save_image(img_data, bbox, output_folder, cropped_filename)
 
-
 def main():
     data_folder = 'data'
     annotation_file = os.path.join(os.getcwd(),
@@ -36,8 +35,8 @@ def main():
     train_output_folder = os.path.join(data_folder, 'images', 'train')
     validation_output_folder = os.path.join(data_folder, 'images', 'validation')
 
-    process_csv_data(annotation_file, train_csv_path, train_output_folder)
-    process_csv_data(annotation_file, validation_csv_path, validation_output_folder)
+    process_crop_csv_data(annotation_file, train_csv_path, train_output_folder)
+    process_crop_csv_data(annotation_file, validation_csv_path, validation_output_folder)
 
 if __name__ == "__main__":
     main()
