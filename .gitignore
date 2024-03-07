@@ -6,5 +6,6 @@ idemia_env/*
 *.pyc
 /models/*
 *.png
+*.jpg
 /Coco/
 /OCHumans/
