@@ -401,25 +401,17 @@ class ImageProcessor:
         return occluded_boxes_tensor, occluded_inputs_tensor, occluded_targets_tensor
 
     @staticmethod
-    def crop_and_save_image(img_data, bbox, output_path, output_filename):
+    def crop_image(img_data, bbox):
         """
-        Crop an image using a specified bounding box (bbox) and save the cropped image to a file.
+        Crop an image using a specified bounding box (bbox) and return it.
 
         Parameters:
         - img_data (numpy.ndarray): The image data as a numpy array.
         - bbox (list of int): The bounding box for cropping the image, specified as [x, y, width, height].
-        - output_path (str): The directory where the cropped image will be saved.
-        - output_filename (str): The name of the file to save the cropped image.
 
         This method crops the given image data based on the bounding box coordinates and dimensions,
-        then saves the cropped portion as a new image file at the specified location.
+        then returns the cropped portion as a new image file.
         """
         x, y, width, height = map(int, bbox)
-
         cropped_image = img_data[y:y+height, x:x+width]
-        cropped_image_pil = Image.fromarray(cropped_image)
-
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
-
-        cropped_image_pil.save(os.path.join(output_path, output_filename))
+        return Image.fromarray(cropped_image)
