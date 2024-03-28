@@ -58,7 +58,7 @@ py -m bin.RunModel
 - You can launch DataCropper script to create cropped images:
 
 ```
-py -m bin.DataParser
+py -m bin.DataCropper
 ```
 
 ## How to use your GPU
