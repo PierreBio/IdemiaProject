@@ -7,7 +7,7 @@ setup(
     install_requires=[
         "matplotlib==3.7.1",
         "pycocotools==2.0.7",
-        "setuptools==65.5.0",
+        "setuptools==60.2.0",
         "scikit-image==0.22.0",
     ]
 )

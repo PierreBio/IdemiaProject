@@ -8,3 +8,6 @@ idemia_env/*
 *.png
 /Coco/
 /OCHumans/
+data/coco*
+data/image*
+checkpoints/*
