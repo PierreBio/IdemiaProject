@@ -35,18 +35,23 @@ def process_crop_csv_data(annotation_file, csv_path, output_folder):
 
 def main():
     data_folder = 'data'
-    annotation_file = os.path.join(os.getcwd(),
+    annotation_train_file = os.path.join(os.getcwd(),
                             "Coco",
                             "annotations_trainval2017",
                             "person_keypoints_train2017.json")
+
+    annotation_val_file = os.path.join(os.getcwd(),
+                            "Coco",
+                            "annotations_trainval2017",
+                            "person_keypoints_val2017.json")
 
     train_csv_path = os.path.join(data_folder, 'coco_train_data.csv')
     validation_csv_path = os.path.join(data_folder, 'coco_validation_data_with_occlusion.csv')
     train_output_folder = os.path.join(data_folder, 'images', 'train')
     validation_output_folder = os.path.join(data_folder, 'images', 'validation')
 
-    process_crop_csv_data(annotation_file, train_csv_path, train_output_folder)
-    process_crop_csv_data(annotation_file, validation_csv_path, validation_output_folder)
+    process_crop_csv_data(annotation_train_file, train_csv_path, train_output_folder)
+    process_crop_csv_data(annotation_val_file, validation_csv_path, validation_output_folder)
 
 if __name__ == "__main__":
     main()
