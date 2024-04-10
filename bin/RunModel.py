@@ -38,6 +38,8 @@ def prepare_data(data_path):
 # Setup
 config = load_config(os.path.join(os.getcwd(), "config", "config.yaml"))
 device = torch.device(config['device'] if torch.cuda.is_available() else "cpu")
+print("Running on device: ", device)
+
 models_path = os.path.join(os.getcwd(), "models")
 if not os.path.exists(models_path):
     os.makedirs(models_path)

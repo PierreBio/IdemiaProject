@@ -6,6 +6,11 @@ training:
   batch_size: 16
   learning_rate: 0.0001
 data:
+<<<<<<< Updated upstream
   train_path: data/coco_train_data.csv
   validation_path: data/coco_validation_data_with_occlusion.csv
+=======
+  train_path: data/train_data.csv
+  validation_path: data/coco_validation_data.csv
+>>>>>>> Stashed changes
 device: cuda

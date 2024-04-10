@@ -9,6 +9,7 @@ import torch
 import pandas as pd
 
 
+
 # -----------------------------------------------------------------------------
 # ImageProcessor
 # -----------------------------------------------------------------------------
@@ -76,8 +77,6 @@ class ImageProcessor:
             else:
                 norm_keypoints.extend([x, y, v])
 
-        # Setting up new x0 & y0 for the box with normalized data
-        bbox = [0, 0, width, height]
         return norm_keypoints, bbox
 
     @staticmethod
@@ -278,12 +277,14 @@ class ImageProcessor:
             occluded_box[3] *= scale_factor  # Apply occlusion by modifying the height
 
         # Normalize keypoints and target with the occluded box
-        normalized_keypoints, _ = ImageProcessor.normalize_keypoints(keypoints, occluded_box)
+        normalized_keypoints, _ = ImageProcessor.normalize_keypoints(keypoints,
+                                                                     [0, 0, occluded_box[2], occluded_box[3]])
 
         # TODO: Adding visibility data to the target to be able to normalize it
         #       and then removing it (this is a temp solution)
         new_target = target + [2]
-        normalized_target, _ = ImageProcessor.normalize_keypoints(new_target, occluded_box)
+        normalized_target, _ = ImageProcessor.normalize_keypoints(new_target,
+                                                                  [0, 0, occluded_box[2], occluded_box[3]])
 
         return occluded_box, normalized_keypoints, normalized_target[:-1]
 
@@ -374,14 +375,15 @@ class ImageProcessor:
                 box_occluded[3] = box_occluded[3] * scale_factor
 
             # Normalize keypoints with the occluded box
-            normalized_kps, _ = ImageProcessor.normalize_keypoints(keypoints.tolist(), box_occluded.tolist())
+            normalized_kps, _ = ImageProcessor.normalize_keypoints(keypoints.tolist(),
+                                                                   [0, 0, box_occluded[2], box_occluded[3]])
 
             # Temporarily add a visibility value to target for normalization
             target_with_visibility = torch.cat((target, torch.tensor([2.0], dtype=torch.float32)))
 
             # Normalize target with the occluded box
             normalized_target_list, _ = ImageProcessor.normalize_keypoints(target_with_visibility.tolist(),
-                                                                           box_occluded.tolist())
+                                                                           [0, 0, box_occluded[2], box_occluded[3]])
 
             # Convert back to tensor and remove the temporary visibility value
             normalized_target = torch.tensor(normalized_target_list[:-1], dtype=torch.float32)
