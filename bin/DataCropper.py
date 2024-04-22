@@ -19,19 +19,22 @@ def process_crop_csv_data(annotation_file, csv_path, output_folder):
     coco_cropper = ImageProcessor()
 
     with open(csv_path, mode='r') as csv_file:
+        line_count = 0
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
-            img_id = int(row['img_id'])
-            pedestrian_id = row['pedestrian_id']
-            image = coco.loadImgs(img_id)[0]
-            img_data = io.imread(image['coco_url'])
-            anns = coco.loadAnns(int(pedestrian_id))
-            for ann in anns:
-                bbox = ann['bbox']
-                cropped_image = coco_cropper.crop_image(img_data, bbox)
-                if not os.path.exists(output_folder):
-                    os.makedirs(output_folder)
-                cropped_image.save(os.path.join(output_folder, f"{img_id}_{pedestrian_id}.jpg"))
+            line_count +=1
+            if line_count >= 32263:
+                img_id = int(row['img_id'])
+                pedestrian_id = row['pedestrian_id']
+                image = coco.loadImgs(img_id)[0]
+                img_data = io.imread(image['coco_url'])
+                anns = coco.loadAnns(int(pedestrian_id))
+                for ann in anns:
+                    bbox = ann['bbox']
+                    cropped_image = coco_cropper.crop_image(img_data, bbox)
+                    if not os.path.exists(output_folder):
+                        os.makedirs(output_folder)
+                    cropped_image.save(os.path.join(output_folder, f"{img_id}_{pedestrian_id}.jpg"))
 
 def main():
     data_folder = 'data'

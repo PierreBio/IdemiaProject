@@ -41,6 +41,12 @@ py -m venv venv
 pip install -r requirements.txt
 ```
 
+- Install MMCV:
+
+```
+pip install ./manual_packages/mmcv-full-2.1.0.tar.gz
+```
+
 ## How to launch?
 
 - Once the project is setup, you can launch DataParser script to parse data:
