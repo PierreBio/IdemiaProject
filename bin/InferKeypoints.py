@@ -1,5 +1,5 @@
 import os
-import cv2
+import csv
 import numpy as np
 import pandas as pd
 import torch
@@ -18,51 +18,50 @@ def rtm_inference(csv_file, device_name, path_model='checkpoints\\rtmpose_model.
         csv_output (str): Path to the output CSV file.
     """
     inferencer = MMPoseInferencer('human')
-
-    result_generator = inferencer("./data/images/train/431_435945.jpg", show=True)
-    result = next(result_generator)
-    print(result)
-    print("GOOOOOOO")
     df = pd.read_csv(csv_file)
-    print(df.shape)
-    for index,row in df.iterrows():
-        img_id = row['img_id']
-        img_filename = f"{str(img_id).zfill(12)}.jpg"
-        img_path = os.path.join(os.getcwd(), "data", "images", "train", img_filename)
 
-        if not os.path.exists(img_path):
-            df.drop(index, inplace=True)
-            continue
+    with open(csv_output, 'w', newline='') as output_file:
+        fieldnames = ['img_id', 'pedestrian_id', 'bbox', 'keypoints', 'target']
+        writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+        writer.writeheader()
 
-        img = cv2.imread(img_path)
-        bbox = row['bbox']
+        for index, row in df.iterrows():
+            img_id = row['img_id']
+            pedestrian_id = row['pedestrian_id']
+            img_filename = f"{img_id}_{pedestrian_id}.jpg"
+            img_path = os.path.join(os.getcwd(), "data", "images", "train", img_filename)
 
-        print(f"Performing inference on image {img_id}...")
-        #on effectue l'inférence
-        if bbox is None:
-            result_generator = inferencer(img)
+            if not os.path.exists(img_path):
+                print(f"Image file not found: {img_path}")
+                continue
+
+            print(f"Performing inference on image {img_id} with pedestrian ID {pedestrian_id}...")
+            result_generator = inferencer(img_path, show=False)
             result = next(result_generator)
-        else:
-            bbox = eval(bbox)
-            bbox = np.array(bbox, dtype=int)
-            original_bbox = bbox.copy()
-            bbox[2:] += bbox[:2]
-            result_generator = inferencer(img, bbox)
-            result = next(result_generator)
-            print(result)
 
+            predictions = result.get('predictions', [])
 
-        result = result.reshape(-1).tolist()
-        result, bbox = ImageProcessor.normalize_keypoints(result, original_bbox)
+            for prediction in predictions[0]:
+                keypoints = prediction['keypoints']
+                bbox = prediction['bbox']
+                keypoints_flat = [kp for sublist in keypoints for kp in sublist]
 
-        for i in range(len(result)):
-            if (i + 1) % 3 == 0:
-                result[i] = 2
+                if len(keypoints) >= 2:
+                    foot1_x, foot1_y = keypoints[-2][0], keypoints[-2][1]
+                    foot2_x, foot2_y = keypoints[-1][0], keypoints[-1][1]
+                    target = [(foot1_x + foot2_x) / 2, (foot1_y + foot2_y) / 2]
+                else:
+                    target = [None, None]
 
-        # Replace the keypoints in the dataframe
-        df.at[index, 'keypoints'] = result
-    # Save the dataframe to a new CSV file
-    df.to_csv(csv_output, index=False)
+                writer.writerow({
+                    'img_id': img_id,
+                    'pedestrian_id': pedestrian_id,
+                    'bbox': str(bbox),
+                    'keypoints': str(keypoints_flat),
+                    'target': str(target)
+                })
+
+    print(f"Results saved to {csv_output}")
 
 if __name__ == '__main__':
     # Set device name to 'cuda' if you have a GPU
@@ -72,18 +71,14 @@ if __name__ == '__main__':
     config_path = "./configs/config_rtm_pose.py"
     checkpoint_path = "./checkpoints/rtmpose-tiny_simcc-aic-coco_pt-aic-coco_420e-256x192-cfc8f33d_20230126.pth"
 
-    print("HELLLO")
     model = init_model(config_path, checkpoint_path, device=device)
-    print("BYYEEE1")
-
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
-    print("BYYEEE2")
 
     input_tensor = torch.randn(1, 3, 256, 192)
     onnx_file = "./checkpoints/rtmpose_model.onnx"
-    print("BYYYEEE3")
+
     torch.onnx.export(model, input_tensor, onnx_file, opset_version=11,
                     input_names=['input'], output_names=['output'],
                     dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}})
