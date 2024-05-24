@@ -1,4 +1,5 @@
 import os
+import ast
 import csv
 import numpy as np
 import pandas as pd
@@ -71,7 +72,7 @@ def rtm_inference(csv_file,
                 continue
 
             print(f"Performing inference on image {img_id} with pedestrian ID {pedestrian_id}...")
-            result_generator = inferencer(img_path, show=True)
+            result_generator = inferencer(img_path, show=False)
             result = next(result_generator)
 
             predictions = result.get('predictions', [])

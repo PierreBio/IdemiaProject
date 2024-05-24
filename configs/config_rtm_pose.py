@@ -1,5 +1,7 @@
 _base_ = ['mmpose::_base_/default_runtime.py']
 
+from src.Common.Occlude import Occlude
+
 # common setting
 num_keypoints = 17
 input_size = (192, 256)

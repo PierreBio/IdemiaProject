@@ -23,7 +23,7 @@ def process_crop_csv_data(annotation_file, csv_path, output_folder):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             line_count +=1
-            if line_count >= 40733:
+            if line_count >= 61819:
                 img_id = int(row['img_id'])
                 pedestrian_id = row['pedestrian_id']
                 image = coco.loadImgs(img_id)[0]

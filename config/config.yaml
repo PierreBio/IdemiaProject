@@ -6,6 +6,6 @@ training:
   batch_size: 16
   learning_rate: 0.0001
 data:
-  train_path: data/coco_train_data.csv
+  train_path: data/modified_file.csv
   validation_path: data/coco_validation_data_with_occlusion.csv
 device: cuda

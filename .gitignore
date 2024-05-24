@@ -9,3 +9,4 @@ idemia_env/*
 *.jpg
 /Coco/
 /OCHumans/
+/work_dir
