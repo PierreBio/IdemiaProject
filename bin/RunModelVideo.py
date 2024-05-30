@@ -93,6 +93,7 @@ def process_video(video_path, model, K, R, T):
 
             with torch.no_grad():
                 prediction = model(input_tensor).squeeze().tolist()
+                print(prediction)
                 height, width = frame.shape[:2]
                 x, y = int(prediction[0] * width), int(prediction[1] * height)
 
@@ -102,7 +103,16 @@ def process_video(video_path, model, K, R, T):
         new_width = int(width / 4)  # Resize width to half of original
         new_height = int(height / 4)  # Resize height to half of original
 
-        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+        for kp in normalized_keypoints:
+            x_kp, y_kp = int(kp[0] * width), int(kp[1] * height)
+            cv2.circle(frame, (x_kp, y_kp), 3, (255, 0, 0), -1)  # Draw each keypoint in blue
+
+        if len(normalized_keypoints) >= 2:
+            left_foot = normalized_keypoints[-2]
+            right_foot = normalized_keypoints[-1]
+            midpoint_x = int((left_foot[0] + right_foot[0]) * width / 2)
+            midpoint_y = int((left_foot[1] + right_foot[1]) * height / 2)
+            cv2.circle(frame, (midpoint_x, midpoint_y), 5, (0, 255, 0), -1)  # Green circle for midpoint
 
         # Resize the image
         resized_frame = cv2.resize(frame, (new_width, new_height))
