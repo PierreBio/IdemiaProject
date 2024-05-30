@@ -56,52 +56,52 @@ def rtm_inference(csv_file,
     )
     df = pd.read_csv(csv_file)
 
-    with open(csv_output, 'w', newline='') as output_file:
+    with open(csv_output, 'a', newline='') as output_file:
         fieldnames = ['img_id', 'pedestrian_id', 'bbox', 'keypoints', 'target']
         writer = csv.DictWriter(output_file, fieldnames=fieldnames)
         writer.writeheader()
 
         for index, row in df.iterrows():
-            img_id = row['img_id']
-            pedestrian_id = row['pedestrian_id']
-            img_filename = f"{img_id}_{pedestrian_id}.jpg"
-            img_path = os.path.join(os.getcwd(), "data", "images", "train", img_filename)
+            if index > 34472:
+                img_id = row['img_id']
+                pedestrian_id = row['pedestrian_id']
+                img_filename = f"{img_id}_{pedestrian_id}.jpg"
+                img_path = os.path.join(os.getcwd(), "data", "images", "train", img_filename)
 
-            if not os.path.exists(img_path):
-                print(f"Image file not found: {img_path}")
-                continue
+                if not os.path.exists(img_path):
+                    print(f"Image file not found: {img_path}")
+                    continue
 
-            print(f"Performing inference on image {img_id} with pedestrian ID {pedestrian_id}...")
-            result_generator = inferencer(img_path, show=False)
-            result = next(result_generator)
+                print(f"Performing inference on image {img_id} with pedestrian ID {pedestrian_id}...")
+                result_generator = inferencer(img_path, show=False)
+                result = next(result_generator)
 
-            predictions = result.get('predictions', [])
+                predictions = result.get('predictions', [])
 
-            if predictions:
-                prediction = predictions[0][0]
-                bbox = prediction['bbox']
-                keypoints = prediction['keypoints']
-                keypoints = keypoints[:-2]
-                scores = prediction['keypoint_scores']
-                normalized_keypoints = normalize_and_classify_keypoints(keypoints, scores, bbox)
-                occluded_keypoints = occlude_keypoints(normalized_keypoints, scores, score_threshold=0.5)
+                if predictions:
+                    prediction = predictions[0][0]
+                    bbox = prediction['bbox']
+                    keypoints = prediction['keypoints']
+                    keypoints = keypoints[:-2]
+                    scores = prediction['keypoint_scores']
+                    normalized_keypoints = normalize_and_classify_keypoints(keypoints, scores, bbox)
 
-                keypoints_flat = [item for sublist in normalized_keypoints for item in sublist]
+                    keypoints_flat = [item for sublist in normalized_keypoints for item in sublist]
 
-                if len(normalized_keypoints) >= 2:
-                    foot1_x, foot1_y, _ = normalized_keypoints[-2]
-                    foot2_x, foot2_y, _ = normalized_keypoints[-1]
-                    target = [(foot1_x + foot2_x) / 2, (foot1_y + foot2_y) / 2]
-                else:
-                    target = [None, None]
+                    if len(normalized_keypoints) >= 2:
+                        foot1_x, foot1_y, _ = normalized_keypoints[-2]
+                        foot2_x, foot2_y, _ = normalized_keypoints[-1]
+                        target = [(foot1_x + foot2_x) / 2, (foot1_y + foot2_y) / 2]
+                    else:
+                        target = [None, None]
 
-                writer.writerow({
-                    'img_id': img_id,
-                    'pedestrian_id': pedestrian_id,
-                    'bbox': str(bbox),
-                    'keypoints': str(keypoints_flat),
-                    'target': str(target) if target != [None, None] else "[]"
-                })
+                    writer.writerow({
+                        'img_id': img_id,
+                        'pedestrian_id': pedestrian_id,
+                        'bbox': str(bbox),
+                        'keypoints': str(keypoints_flat),
+                        'target': str(target) if target != [None, None] else "[]"
+                    })
 
     print(f"Results saved to {csv_output}")
 

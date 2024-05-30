@@ -1,9 +1,15 @@
+import os
 import torch
+import ast
 import cv2
+import pandas as pd
 import numpy as np
 import yaml
 from mmpose.apis import MMPoseInferencer
 
+from bin.VisualiseUtils import visualize_specific_pedestrian_local, calculate_euclidean_distance
+from src.Models.Mlp import MLP
+from src.DataLoader.DataLoader import csv_string_to_list
 from src.ImageParser.ImageProcessor import ImageProcessor
 from src.Common.Occlude import Occlude
 
@@ -41,8 +47,15 @@ def normalize_and_classify_keypoints(keypoints, scores, bbox):
         visibility = 2 if score > 0.5 else 1 if score > 0.2 else 0
         normalized_keypoints.append([x_norm, y_norm, visibility])
 
-def load_model(model_path):
-    model = torch.load(model_path, map_location=torch.device('cpu'))
+    return normalized_keypoints
+
+def load_model():
+    input_size = 45
+    output_size = 2
+    layers = [256, 128, 64, 32]
+
+    model = MLP(input_size, output_size, layers)
+    model.load_state_dict(torch.load("models/20240306_214252_LR0.0001_BS16/best_model_epoch_1_rmse_0.1210.pth"))
     model.eval()
     return model
 
@@ -65,6 +78,7 @@ def process_video(video_path, model, K, R, T):
 
         result_generator = inferencer(input_frame, show=False)
         result = next(result_generator)
+
         predictions = result.get('predictions', [])
 
         if predictions:
@@ -74,20 +88,27 @@ def process_video(video_path, model, K, R, T):
             keypoints = keypoints[:-2]
             scores = prediction['keypoint_scores']
             normalized_keypoints = normalize_and_classify_keypoints(keypoints, scores, bbox)
+            keypoints_flat = [item for sublist in normalized_keypoints for item in sublist]
+            input_tensor = torch.tensor(keypoints_flat, dtype=torch.float32).unsqueeze(0)
 
             with torch.no_grad():
-                output = model(normalized_keypoints)
-                print(output)
-                x, y = int(output[0]), int(output[1])
+                prediction = model(input_tensor).squeeze().tolist()
+                height, width = frame.shape[:2]
+                x, y = int(prediction[0] * width), int(prediction[1] * height)
+
+        Z = calculate_depth(K, R, T, prediction)
+        print(Z)
+        print(f"Predicted coordinates: X={x}, Y={y}, Z={Z}")
+        new_width = int(width / 4)  # Resize width to half of original
+        new_height = int(height / 4)  # Resize height to half of original
 
         cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-        Z = calculate_depth(K, R, T, output)
-        print(f"Predicted coordinates: X={x}, Y={y}, Z={Z}")
-
-        cv2.imshow('Frame', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # Resize the image
+        resized_frame = cv2.resize(frame, (new_width, new_height))
+        cv2.imshow('Frame', resized_frame)
+        key = cv2.waitKey(0)  # 0 signifie attendre indéfiniment pour une touche
+        if key == ord('q'):  # Quitter si la touche 'q' est pressée
             break
 
     cap.release()
@@ -101,15 +122,24 @@ def opencv_matrix_constructor(loader, node):
         mat = mat.reshape(mapping['rows'], mapping['cols'])
     return mat
 
+def convert_bbox(bbox_str):
+    cleaned_str = bbox_str.replace("([", "").replace("],)", "")
+    if cleaned_str.endswith(','):
+        cleaned_str = cleaned_str[:-1]
+    return f"[{cleaned_str}]"
+
 def main():
+    #df = pd.read_csv('./data/train_data_RTMpose.csv')
+    #df['bbox'] = df['bbox'].apply(convert_bbox)
+    #df.to_csv('./data/train_data_RTMpose_formatted.csv', index=False)
+
     yaml.SafeLoader.add_constructor("tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
     calibration_file = 'config/calibration_chessboard.yml'
-    model_path = 'models/20240306_214252_LR0.0001_BS16/best_model_epoch_1_rmse_0.1210.pth'
-    video_path = 'data/out_0_blurred.mp4'
+    video_path = 'data/videos/out_0_blurred.mp4'
 
     K, rvec, T = load_calibration_data(calibration_file)
     R, _ = cv2.Rodrigues(rvec)
-    model = load_model(model_path)
+    model = load_model()
     process_video(video_path, model, K, R, T)
 
 if __name__ == '__main__':
