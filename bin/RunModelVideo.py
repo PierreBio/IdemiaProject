@@ -154,7 +154,7 @@ def process_video(video_path, model, K, R, T):
 
             resized_frame = cv2.resize(frame, (new_width, new_height))
             cv2.imshow('Frame', resized_frame)
-            key = cv2.waitKey(0)
+            key = cv2.waitKey(1)
             if key == ord('q'):
                 break
 
