@@ -28,10 +28,10 @@ def preprocess_frame(frame):
 def calculate_depth(K, R, T, output):
     u, v = output[0], output[1]
     H_real = 1.75
-    f_x = K[0, 0]
-    f_y = K[1, 1]
-    c_x = K[0, 2]
-    c_y = K[1, 2]
+    f_x = K[0][0]
+    f_y = K[1][1]
+    c_x = K[0][2]
+    c_y = K[1][2]
     Z = H_real * f_y / (v - c_y)
 
     return Z
@@ -39,6 +39,22 @@ def calculate_depth(K, R, T, output):
 def normalize_and_classify_keypoints(keypoints, scores, bbox):
     x_min, y_min, width, height = bbox[0]
     normalized_keypoints = []
+
+    for kp, score in zip(keypoints, scores):
+        x, y = kp
+        x_norm = (x - x_min) / width
+        y_norm = (y - y_min) / height
+        visibility = 2 if score > 0.5 else 1 if score > 0.2 else 0
+        normalized_keypoints.append([x_norm, y_norm, visibility])
+
+    return normalized_keypoints
+
+def classify_keypoints(keypoints, scores, bbox):
+    x_min, y_min, width, height = bbox[0][:4]
+    normalized_keypoints = []
+
+    keypoints = keypoints[:15]  # Adjust this number to match the model's expected input
+    scores = scores[:15]
 
     for kp, score in zip(keypoints, scores):
         x, y = kp
@@ -85,40 +101,46 @@ def process_video(video_path, model, K, R, T):
             prediction = predictions[0][0]
             bbox = prediction['bbox']
             keypoints = prediction['keypoints']
-            keypoints = keypoints[:-2]
             scores = prediction['keypoint_scores']
-            normalized_keypoints = normalize_and_classify_keypoints(keypoints, scores, bbox)
+
+            print(f"BBox: {bbox}")  # Debug print for BBox
+            normalized_keypoints = classify_keypoints(keypoints, scores, bbox)
             keypoints_flat = [item for sublist in normalized_keypoints for item in sublist]
             input_tensor = torch.tensor(keypoints_flat, dtype=torch.float32).unsqueeze(0)
 
             with torch.no_grad():
-                prediction = model(input_tensor).squeeze().tolist()
-                print(prediction)
+                pred = model(input_tensor).squeeze().tolist()
+                print(pred)
                 height, width = frame.shape[:2]
-                x, y = int(prediction[0] * width), int(prediction[1] * height)
+                x, y = int(pred[0] * width), int(pred[1] * height)
 
-        Z = calculate_depth(K, R, T, prediction)
+        Z = calculate_depth(K, R, T, [x, y])
         print(Z)
         print(f"Predicted coordinates: X={x}, Y={y}, Z={Z}")
-        new_width = int(width / 4)  # Resize width to half of original
-        new_height = int(height / 4)  # Resize height to half of original
+        new_width = int(width / 4)
+        new_height = int(height / 4)
+
+        # Draw the BBox
+        x_min, y_min, width, height = bbox[0]  # Utilisez directement bbox
+        x_min, y_min = int(x_min), int(y_min)
+        width, height = int(width), int(height)
+        cv2.rectangle(frame, (x_min, y_min), (x_min + width, y_min + height), (0, 255, 0), 2)
 
         for kp in normalized_keypoints:
-            x_kp, y_kp = int(kp[0] * width), int(kp[1] * height)
-            cv2.circle(frame, (x_kp, y_kp), 3, (255, 0, 0), -1)  # Draw each keypoint in blue
+            x_kp, y_kp = int(kp[0] * width) + x_min, int(kp[1] * height) + y_min
+            cv2.circle(frame, (x_kp, y_kp), 3, (255, 0, 0), -1)
 
-        if len(normalized_keypoints) >= 2:
-            left_foot = normalized_keypoints[-2]
-            right_foot = normalized_keypoints[-1]
-            midpoint_x = int((left_foot[0] + right_foot[0]) * width / 2)
-            midpoint_y = int((left_foot[1] + right_foot[1]) * height / 2)
-            cv2.circle(frame, (midpoint_x, midpoint_y), 5, (0, 255, 0), -1)  # Green circle for midpoint
+        if len(keypoints) >= 2:
+            left_foot = keypoints[-2]  # Utilisez les deux derniers keypoints pour les pieds
+            right_foot = keypoints[-1]
+            midpoint_x = int((left_foot[0] + right_foot[0]) / 2)
+            midpoint_y = int((left_foot[1] + right_foot[1]) / 2)
+            cv2.circle(frame, (midpoint_x, midpoint_y), 5, (0, 255, 0), -1)
 
-        # Resize the image
         resized_frame = cv2.resize(frame, (new_width, new_height))
         cv2.imshow('Frame', resized_frame)
-        key = cv2.waitKey(0)  # 0 signifie attendre indéfiniment pour une touche
-        if key == ord('q'):  # Quitter si la touche 'q' est pressée
+        key = cv2.waitKey(0)
+        if key == ord('q'):
             break
 
     cap.release()
@@ -145,7 +167,7 @@ def main():
 
     yaml.SafeLoader.add_constructor("tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
     calibration_file = 'config/calibration_chessboard.yml'
-    video_path = 'data/videos/out_0_blurred.mp4'
+    video_path = 'data/videos/out_1_blurred.mp4'
 
     K, rvec, T = load_calibration_data(calibration_file)
     R, _ = cv2.Rodrigues(rvec)
