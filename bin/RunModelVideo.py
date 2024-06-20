@@ -124,7 +124,7 @@ def process_video(video_path, model, K, R, T):
         x_min, y_min, width, height = bbox[0]  # Utilisez directement bbox
         x_min, y_min = int(x_min), int(y_min)
         width, height = int(width), int(height)
-        cv2.rectangle(frame, (x_min, y_min), (x_min + width, y_min + height), (0, 255, 0), 2)
+        cv2.rectangle(frame, (x_min, y_min), (width, height), (0, 255, 0), 2)
 
         for kp in normalized_keypoints:
             x_kp, y_kp = int(kp[0] * width) + x_min, int(kp[1] * height) + y_min
