@@ -25,16 +25,32 @@ def preprocess_frame(frame):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return frame_rgb
 
-def calculate_depth(K, R, T, output):
-    u, v = output[0], output[1]
-    H_real = 1.75
-    f_x = K[0][0]
-    f_y = K[1][1]
-    c_x = K[0][2]
-    c_y = K[1][2]
-    Z = H_real * f_y / (v - c_y)
+def project_3D(x, y):
+    R = cv2.Rodrigues(np.array([2.6189290945954357e-02, -5.5331752454872749e-02, -1.2048098191361701e-02]))[0]
+    T = np.array([-1.5796518062629719e-01, 2.0564861475370146e+00, 3.2038382002887049e+00])
+    K = np.array([[1.5392625928567616e+03, 0., 1.0368496774327198e+03, 0.],
+                  [0., 1.5396601167766560e+03, 1.5728659208182914e+03, 0.],
+                  [0., 0., 1., 0.],
+                  [0., 0., 0., 1.]])
+    RT = np.column_stack((R, T))
+    RT = np.row_stack((RT, np.asarray([0, 0, 0, 1])))
 
-    return Z
+    P = np.matmul(K, RT)
+
+    A = np.array([
+        [P[0, 0], P[0, 2], -x],
+        [P[1, 0], P[1, 2], -y],
+        [P[2, 0], P[2, 2], -1]
+    ])
+    b = np.array([
+        [-P[0, 3]],
+        [-P[1, 3]],
+        [-P[2, 3]]])
+
+    [X, Z, w] = np.linalg.solve(A, b)
+    # Calibration recorrection of axis (check if this is needed)
+    Z += 3.5
+    return X, Z
 
 def normalize_and_classify_keypoints(keypoints, scores, bbox):
     x_min, y_min, width, height = bbox[0]
@@ -112,36 +128,35 @@ def process_video(video_path, model, K, R, T):
                 pred = model(input_tensor).squeeze().tolist()
                 print(pred)
                 height, width = frame.shape[:2]
-                x, y = int(pred[0] * width), int(pred[1] * height)
+                x_min, y_min, bbox_width, bbox_height = bbox[0]
 
-        Z = calculate_depth(K, R, T, [x, y])
-        print(Z)
-        print(f"Predicted coordinates: X={x}, Y={y}, Z={Z}")
-        new_width = int(width / 4)
-        new_height = int(height / 4)
+            # Calculate depth using the new project_3D function
+            new_width = int(width / 4)
+            new_height = int(height / 4)
 
-        # Draw the BBox
-        x_min, y_min, width, height = bbox[0]  # Utilisez directement bbox
-        x_min, y_min = int(x_min), int(y_min)
-        width, height = int(width), int(height)
-        cv2.rectangle(frame, (x_min, y_min), (width, height), (0, 255, 0), 2)
+            # Draw the BBox
+            x_min, y_min, width, height = bbox[0]  # Directly use bbox
+            x_min, y_min = int(x_min), int(y_min)
+            width, height = int(width), int(height)
+            cv2.rectangle(frame, (x_min, y_min), (width, height), (0, 255, 0), 2)
 
-        for kp in normalized_keypoints:
-            x_kp, y_kp = int(kp[0] * width) + x_min, int(kp[1] * height) + y_min
-            cv2.circle(frame, (x_kp, y_kp), 3, (255, 0, 0), -1)
+            for kp in normalized_keypoints:
+                x_kp, y_kp = int(kp[0] * width) + x_min, int(kp[1] * height) + y_min
+                cv2.circle(frame, (x_kp, y_kp), 3, (255, 0, 0), -1)
 
-        if len(keypoints) >= 2:
-            left_foot = keypoints[-2]  # Utilisez les deux derniers keypoints pour les pieds
-            right_foot = keypoints[-1]
-            midpoint_x = int((left_foot[0] + right_foot[0]) / 2)
-            midpoint_y = int((left_foot[1] + right_foot[1]) / 2)
-            cv2.circle(frame, (midpoint_x, midpoint_y), 5, (0, 255, 0), -1)
+            if len(keypoints) >= 2:
+                left_foot = keypoints[-2]  # Use the last two keypoints for the feet
+                right_foot = keypoints[-1]
+                midpoint_x = int((left_foot[0] + right_foot[0]) / 2)
+                midpoint_y = int((left_foot[1] + right_foot[1]) / 2)
+                cv2.circle(frame, (midpoint_x, midpoint_y), 5, (0, 255, 0), -1)
+                print(project_3D(midpoint_x, midpoint_y))
 
-        resized_frame = cv2.resize(frame, (new_width, new_height))
-        cv2.imshow('Frame', resized_frame)
-        key = cv2.waitKey(0)
-        if key == ord('q'):
-            break
+            resized_frame = cv2.resize(frame, (new_width, new_height))
+            cv2.imshow('Frame', resized_frame)
+            key = cv2.waitKey(0)
+            if key == ord('q'):
+                break
 
     cap.release()
     cv2.destroyAllWindows()
@@ -175,4 +190,6 @@ def main():
     process_video(video_path, model, K, R, T)
 
 if __name__ == '__main__':
+    print(project_3D(963, 2638))
+    print(project_3D(963, 2838))
     main()
